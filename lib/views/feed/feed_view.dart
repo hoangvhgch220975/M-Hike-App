@@ -17,6 +17,15 @@ class FeedView extends StatefulWidget {
 class _FeedViewState extends State<FeedView> {
   String _selectedFilter = 'All';
 
+  // Pagination fields
+  final ScrollController _controller = ScrollController();
+  List<Hike> _allHikes = [];
+  List<Hike> _displayed = [];
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  bool _initialized = false;
+  final int _pageSize = 4;
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +33,62 @@ class _FeedViewState extends State<FeedView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<HikeViewModel>(context, listen: false);
       viewModel.initialize();
+    });
+    _controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onScroll);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_controller.hasClients || _isLoadingMore || !_hasMore) return;
+    final threshold = 120.0; // px from bottom to trigger
+    if (_controller.position.maxScrollExtent - _controller.position.pixels <= threshold) {
+      _loadMore();
+    }
+  }
+
+  void _resetPagination(List<Hike> source) {
+    _allHikes = List.of(source);
+    final first = _allHikes.length > _pageSize ? _pageSize : _allHikes.length;
+    _displayed = _allHikes.take(first).toList();
+    _hasMore = _displayed.length < _allHikes.length;
+    _isLoadingMore = false;
+    _initialized = true;
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    // Simulate searching/fetching for up to 1.5 seconds
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (!mounted) return;
+
+    final currentlyShown = _displayed.length;
+    final remaining = _allHikes.length - currentlyShown;
+    if (remaining <= 0) {
+      setState(() {
+        _hasMore = false;
+        _isLoadingMore = false;
+      });
+      return;
+    }
+
+    final nextCount = remaining > _pageSize ? _pageSize : remaining;
+    final nextItems = _allHikes.skip(currentlyShown).take(nextCount).toList();
+
+    setState(() {
+      _displayed.addAll(nextItems);
+      _hasMore = _displayed.length < _allHikes.length;
+      _isLoadingMore = false;
     });
   }
 
@@ -34,10 +99,15 @@ class _FeedViewState extends State<FeedView> {
     return Consumer<HikeViewModel>(
       builder: (context, viewModel, child) {
         // Get filtered hikes based on selected filter
-        List<Hike> displayHikes = _getFilteredHikes(viewModel);
+        List<Hike> filtered = _getFilteredHikes(viewModel);
 
-        // Show empty view if no completed hikes exist
-        if (viewModel.feed.isEmpty && !viewModel.isLoading) {
+        // If filtered list changed (or first init), reset pagination
+        if (!_initialized || filtered.length != _allHikes.length) {
+          _resetPagination(filtered);
+        }
+
+        // Show empty view if no completed hikes exist (and not loading)
+        if (filtered.isEmpty && !viewModel.isLoading) {
           return const EmptyFeedView();
         }
 
@@ -54,32 +124,36 @@ class _FeedViewState extends State<FeedView> {
                     _buildFilters(colors, viewModel),
                     const SizedBox(height: 8),
                     Expanded(
-                      child: displayHikes.isEmpty && !viewModel.isLoading
-                          ? _buildEmptyState(colors)
+                      child: _displayed.isEmpty && viewModel.isLoading
+                          ? const Center(child: CircularProgressIndicator())
                           : ListView.builder(
+                              controller: _controller,
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              itemCount: displayHikes.length + (viewModel.isLoading ? 1 : 0),
+                              itemCount: _displayed.length + (_hasMore ? 1 : 0),
                               itemBuilder: (context, index) {
-                                if (index == displayHikes.length) {
-                                  return const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 32),
+                                if (index == _displayed.length) {
+                                  // footer
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 24),
                                     child: Center(
-                                      child: SizedBox(
-                                        height: 32,
-                                        width: 32,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 3,
-                                          color: Color(0xFF225749),
-                                        ),
-                                      ),
+                                      child: _isLoadingMore
+                                          ? const SizedBox(
+                                              height: 32,
+                                              width: 32,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 3,
+                                                color: Color(0xFF225749),
+                                              ),
+                                            )
+                                          : const SizedBox.shrink(),
                                     ),
                                   );
                                 }
 
-                                final hike = displayHikes[index];
+                                final hike = _displayed[index];
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 24),
-                                    child: FeedCard(hike: hike),
+                                  child: FeedCard(hike: hike),
                                 );
                               },
                             ),
@@ -187,6 +261,7 @@ class _FeedViewState extends State<FeedView> {
       onTap: () {
         setState(() {
           _selectedFilter = label;
+          _initialized = false; // reset pagination when filter changes
         });
       },
       child: Container(

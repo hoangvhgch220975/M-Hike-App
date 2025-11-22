@@ -1,95 +1,192 @@
 import 'package:flutter/material.dart';
-
 import '../../db/app_db.dart';
 import '../../models/hike.dart';
 import 'empty_remarkable_view.dart';
 import 'widgets/remarkable_card.dart';
 
-class RemarkableView extends StatelessWidget {
+class RemarkableView extends StatefulWidget {
   const RemarkableView({super.key});
 
   @override
+  State<RemarkableView> createState() => _RemarkableViewState();
+}
+
+class _RemarkableViewState extends State<RemarkableView> {
+  final ScrollController _controller = ScrollController();
+  List<Hike> _allHikes = [];
+  List<Hike> _displayed = [];
+  bool _initialLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _error;
+
+  final int _pageSize = 3; // items per "page" when loading more
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllRemarkable();
+    _controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onScroll);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_controller.hasClients || _isLoadingMore || !_hasMore) return;
+    final threshold = 120.0; // px from bottom to trigger
+    if (_controller.position.maxScrollExtent - _controller.position.pixels <= threshold) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadAllRemarkable() async {
+    setState(() {
+      _initialLoading = true;
+      _error = null;
+    });
+
+    try {
+      final hikes = await AppDatabase.instance.getRemarkableHikes();
+      if (!mounted) return;
+      _allHikes = hikes;
+      if (_allHikes.isEmpty) {
+        // nothing to display; EmptyRemarkableView will be returned from build
+        setState(() {
+          _initialLoading = false;
+          _hasMore = false;
+          _displayed = [];
+        });
+        return;
+      }
+
+      final firstCount = _allHikes.length > _pageSize ? _pageSize : _allHikes.length;
+      setState(() {
+        _displayed = _allHikes.take(firstCount).toList();
+        _hasMore = _displayed.length < _allHikes.length;
+        _initialLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _initialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    // Simulate searching/fetching for up to 1.5 seconds
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (!mounted) return;
+
+    final currentlyShown = _displayed.length;
+    final remaining = _allHikes.length - currentlyShown;
+    if (remaining <= 0) {
+      setState(() {
+        _hasMore = false;
+        _isLoadingMore = false;
+      });
+      return;
+    }
+
+    final nextCount = remaining > _pageSize ? _pageSize : remaining;
+    final nextItems = _allHikes.skip(currentlyShown).take(nextCount).toList();
+
+    setState(() {
+      _displayed.addAll(nextItems);
+      _hasMore = _displayed.length < _allHikes.length;
+      _isLoadingMore = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Hike>>(
-      future: AppDatabase.instance.getRemarkableHikes(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFFF5F5F5),
-            body: Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
-          );
-        }
+    if (_initialLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F5F5),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
+      );
+    }
 
-        if (snapshot.hasError) {
-          return Scaffold(
-            backgroundColor: const Color(0xFFF5F5F5),
-            body: Center(child: Text('Error loading remarkable hikes: ${snapshot.error}')),
-          );
-        }
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: Center(child: Text('Error loading remarkable hikes: $_error')),
+      );
+    }
 
-        final hikes = snapshot.data ?? [];
+    if (_allHikes.isEmpty) {
+      return const EmptyRemarkableView();
+    }
 
-        // If no remarkable hikes, show empty view (keeps its own scaffold)
-        if (hikes.isEmpty) return const EmptyRemarkableView();
-
-        return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
-
-          // AppBar preserves previous look but allows back button if pushed
-          appBar: AppBar(
-            backgroundColor: Colors.white.withOpacity(0.8),
-            elevation: 0,
-            automaticallyImplyLeading: true,
-            centerTitle: true,
-            title: const Text(
-              'Remarkable Hikes',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: Colors.black87,
-              ),
-            ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        backgroundColor: Colors.white.withOpacity(0.8),
+        elevation: 0,
+        automaticallyImplyLeading: true,
+        centerTitle: true,
+        title: const Text(
+          'Remarkable Hikes',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.black87,
           ),
-
-          body: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: hikes.length + 1,
-            itemBuilder: (context, index) {
-              if (index == hikes.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF2E7D32),
-                            strokeWidth: 3,
+        ),
+      ),
+      body: ListView.builder(
+        controller: _controller,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        itemCount: _displayed.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _displayed.length) {
+            // footer: show loading spinner while searching for more; if none, footer will be hidden
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: _isLoadingMore
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF2E7D32),
+                              strokeWidth: 3,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 8),
-                        Text("Loading more...", style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                );
-              }
+                          SizedBox(width: 8),
+                          Text("Searching for more...", style: TextStyle(color: Colors.grey)),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            );
+          }
 
-              final hike = hikes[index];
-
-              return RemarkableCard(
-                hike: hike,
-                onTap: () {
-                  // TODO: navigate to hike detail when implemented
-                },
-              );
+          final hike = _displayed[index];
+          return RemarkableCard(
+            hike: hike,
+            onTap: () {
+              // TODO: navigate to hike detail when implemented
             },
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
