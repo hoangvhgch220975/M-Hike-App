@@ -36,27 +36,41 @@ class _SplashScreenState extends State<SplashScreen>
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => const WelcomeScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              // Fade transition
-              const begin = 0.0;
-              const end = 1.0;
-              const curve = Curves.easeInOut;
+              // Fade transition với curve mượt mà hơn
+              const fadeBegin = 0.0;
+              const fadeEnd = 1.0;
+              const fadeCurve = Curves.easeInOutCubic;
 
-              var fadeTween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var fadeTween = Tween(begin: fadeBegin, end: fadeEnd).chain(CurveTween(curve: fadeCurve));
               var fadeAnimation = animation.drive(fadeTween);
 
-              // Scale transition
-              var scaleTween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: curve));
+              // Slide transition từ dưới lên nhẹ nhàng
+              const slideBegin = Offset(0.0, 0.08);
+              const slideEnd = Offset.zero;
+              const slideCurve = Curves.easeOutCubic;
+
+              var slideTween = Tween(begin: slideBegin, end: slideEnd).chain(CurveTween(curve: slideCurve));
+              var slideAnimation = animation.drive(slideTween);
+
+              // Scale transition nhẹ
+              const scaleBegin = 0.96;
+              const scaleEnd = 1.0;
+
+              var scaleTween = Tween(begin: scaleBegin, end: scaleEnd).chain(CurveTween(curve: fadeCurve));
               var scaleAnimation = animation.drive(scaleTween);
 
-              return FadeTransition(
-                opacity: fadeAnimation,
-                child: ScaleTransition(
-                  scale: scaleAnimation,
-                  child: child,
+              return SlideTransition(
+                position: slideAnimation,
+                child: FadeTransition(
+                  opacity: fadeAnimation,
+                  child: ScaleTransition(
+                    scale: scaleAnimation,
+                    child: child,
+                  ),
                 ),
               );
             },
-            transitionDuration: const Duration(milliseconds: 800),
+            transitionDuration: const Duration(milliseconds: 900),
           ),
         );
       }

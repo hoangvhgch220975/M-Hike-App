@@ -5,6 +5,7 @@ import '../models/media_item.dart';
 import '../services/media_service.dart';
 import '../db/app_db.dart';
 
+
 class MediaViewModel extends ChangeNotifier {
   final MediaService _mediaService = MediaService();
 

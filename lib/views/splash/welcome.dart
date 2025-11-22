@@ -69,26 +69,41 @@ class WelcomeScreen extends StatelessWidget {
                             PageRouteBuilder(
                               pageBuilder: (context, animation, secondaryAnimation) => const MainNavbar(),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                // Fade transition kết hợp slide từ dưới lên
-                                const begin = Offset(0.0, 0.3);
-                                const end = Offset.zero;
-                                const curve = Curves.easeInOutCubic;
+                                // Slide transition từ phải sang trái (như mở app mới)
+                                const slideBegin = Offset(0.15, 0.0);
+                                const slideEnd = Offset.zero;
+                                const slideCurve = Curves.easeOutCubic;
 
-                                var slideTween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var slideTween = Tween(begin: slideBegin, end: slideEnd).chain(CurveTween(curve: slideCurve));
                                 var slideAnimation = animation.drive(slideTween);
 
-                                var fadeTween = Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: curve));
+                                // Fade transition mượt mà
+                                const fadeBegin = 0.0;
+                                const fadeEnd = 1.0;
+                                const fadeCurve = Curves.easeInOutCubic;
+
+                                var fadeTween = Tween(begin: fadeBegin, end: fadeEnd).chain(CurveTween(curve: fadeCurve));
                                 var fadeAnimation = animation.drive(fadeTween);
+
+                                // Scale transition nhẹ để tạo độ sâu
+                                const scaleBegin = 0.94;
+                                const scaleEnd = 1.0;
+
+                                var scaleTween = Tween(begin: scaleBegin, end: scaleEnd).chain(CurveTween(curve: fadeCurve));
+                                var scaleAnimation = animation.drive(scaleTween);
 
                                 return SlideTransition(
                                   position: slideAnimation,
                                   child: FadeTransition(
                                     opacity: fadeAnimation,
-                                    child: child,
+                                    child: ScaleTransition(
+                                      scale: scaleAnimation,
+                                      child: child,
+                                    ),
                                   ),
                                 );
                               },
-                              transitionDuration: const Duration(milliseconds: 600),
+                              transitionDuration: const Duration(milliseconds: 800),
                             ),
                           );
                         },
