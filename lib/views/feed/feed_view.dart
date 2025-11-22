@@ -6,6 +6,7 @@ import '../../viewmodels/hike_viewmodel.dart';
 import '../../models/hike.dart';
 import 'empty_feed_view.dart';
 import 'widgets/feed_card.dart';
+import '../search/search_view.dart';
 
 class FeedView extends StatefulWidget {
   const FeedView({super.key});
@@ -67,8 +68,8 @@ class _FeedViewState extends State<FeedView> {
       _isLoadingMore = true;
     });
 
-    // Simulate searching/fetching for up to 1.5 seconds
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Simulate searching/fetching for up to 1.2 seconds
+    await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
 
@@ -229,7 +230,12 @@ class _FeedViewState extends State<FeedView> {
           ),
           const Spacer(),
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              // Navigate to search view
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const SearchView()),
+              );
+            },
             icon: const Icon(Icons.search, size: 28, color: Color(0xFF1F2937)),
           ),
         ],

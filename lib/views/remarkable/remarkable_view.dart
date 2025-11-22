@@ -86,8 +86,8 @@ class _RemarkableViewState extends State<RemarkableView> {
       _isLoadingMore = true;
     });
 
-    // Simulate searching/fetching for up to 1.5 seconds
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Simulate searching/fetching for up to 1.2 seconds
+    await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
 

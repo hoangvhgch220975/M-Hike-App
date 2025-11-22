@@ -27,7 +27,7 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         centerTitle: true,
         title: const Text(
-          'M-Hike',
+          'Settings',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
