@@ -52,10 +52,15 @@ class _PlanViewState extends State<PlanView> {
           ),
           body: viewModel.plan.isEmpty && !viewModel.isLoading
               ? _buildEmptyState(colors)
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  itemCount: viewModel.plan.length + (viewModel.isLoading ? 1 : 0),
-                  itemBuilder: (context, index) {
+              : RefreshIndicator(
+                  color: const Color(0xFF2E7D32),
+                  onRefresh: () async {
+                    await viewModel.initialize();
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    itemCount: viewModel.plan.length + (viewModel.isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
                     if (index == viewModel.plan.length) {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
@@ -75,10 +80,44 @@ class _PlanViewState extends State<PlanView> {
                     final hike = viewModel.plan[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: PlanCard(hike: hike),
+                      child: PlanCard(
+                        hike: hike,
+                        onCompleted: () async {
+                          // Mark hike as completed
+                          await viewModel.markHikeAsCompleted(hike.id!);
+
+                          if (context.mounted) {
+                            // Show success notification
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        '✓ Hike "${hike.name}" marked as completed!',
+                                        style: const TextStyle(fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: const Color(0xFF2E7D32),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                margin: const EdgeInsets.all(16),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     );
                   },
                 ),
+              ),
           floatingActionButton: FloatingActionButton(
             backgroundColor: const Color(0xFF13ec37),
             shape: const CircleBorder(),

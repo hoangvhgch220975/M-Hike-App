@@ -5,10 +5,12 @@ import '../../../models/hike.dart';
 
 class PlanCard extends StatelessWidget {
   final Hike hike;
+  final VoidCallback? onCompleted;
 
   const PlanCard({
     super.key,
     required this.hike,
+    this.onCompleted,
   });
 
   @override
@@ -45,44 +47,75 @@ class PlanCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title + Location + Date
-          Column(
+          // Title + Location + Date + Complete Button
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                hike.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1C1C1E),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hike.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          hike.location,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          "•",
+                          style: TextStyle(color: Color(0xFF9CA3AF)),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          hike.date,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    hike.location,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF6B7280),
-                      fontWeight: FontWeight.w500,
+              // Tick button to mark as completed
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onCompleted,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2E7D32).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF2E7D32).withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 20,
+                      color: Color(0xFF2E7D32),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    "•",
-                    style: TextStyle(color: Color(0xFF9CA3AF)),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    hike.date,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF6B7280),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
