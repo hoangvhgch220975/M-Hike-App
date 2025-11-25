@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'about.dart';
+import 'statistics.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -87,6 +88,18 @@ class _SettingsViewState extends State<SettingsView> {
               },
             ),
             const SizedBox(height: 16),
+            _buildNavigationItem(
+              icon: Icons.bar_chart,
+              iconColor: const Color(0xFF2E7D32),
+              title: 'Statistics',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const StatisticsView()),
+                );
+              },
+            ),
+            const Divider(height: 1),
             _buildNavigationItem(
               icon: Icons.info,
               iconColor: const Color(0xFF5D4037),

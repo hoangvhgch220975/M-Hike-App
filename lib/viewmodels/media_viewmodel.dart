@@ -31,7 +31,7 @@ class MediaViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      mediaItems = await DbHelper.instance.getMediaForObservation(observationId);
+      mediaItems = await AppDatabase.instance.getMediaForObservation(observationId);
       currentIndex = 0;
     } catch (e) {
       debugPrint('Error loading media: $e');
@@ -90,7 +90,7 @@ class MediaViewModel extends ChangeNotifier {
         );
 
         // Save to database
-        final id = await DbHelper.instance.insertMediaItem(mediaItem);
+        final id = await AppDatabase.instance.insertMediaItem(mediaItem);
         mediaItem.id = id;
 
         // Add to local list
@@ -117,7 +117,7 @@ class MediaViewModel extends ChangeNotifier {
         );
 
         // Save to database
-        final id = await DbHelper.instance.insertMediaItem(mediaItem);
+        final id = await AppDatabase.instance.insertMediaItem(mediaItem);
         mediaItem.id = id;
 
         // Add to local list
@@ -144,7 +144,7 @@ class MediaViewModel extends ChangeNotifier {
         );
 
         // Save to database
-        final id = await DbHelper.instance.insertMediaItem(mediaItem);
+        final id = await AppDatabase.instance.insertMediaItem(mediaItem);
         mediaItem.id = id;
 
         // Add to local list
@@ -171,7 +171,7 @@ class MediaViewModel extends ChangeNotifier {
         );
 
         // Save to database
-        final id = await DbHelper.instance.insertMediaItem(mediaItem);
+        final id = await AppDatabase.instance.insertMediaItem(mediaItem);
         mediaItem.id = id;
 
         // Add to local list
@@ -189,7 +189,7 @@ class MediaViewModel extends ChangeNotifier {
   // Delete media item
   Future<bool> deleteMedia(int id) async {
     try {
-      await DbHelper.instance.deleteMediaItem(id);
+      await AppDatabase.instance.deleteMediaItem(id);
       mediaItems.removeWhere((m) => m.id == id);
 
       // Adjust current index if needed
@@ -214,4 +214,3 @@ class MediaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 }
-

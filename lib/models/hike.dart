@@ -45,17 +45,37 @@ class Hike {
 
   // Tạo đối tượng Hike từ Map đọc từ SQLite
   factory Hike.fromMap(Map<String, dynamic> map) {
+    // length in DB may be stored as int or real; handle both
+    double parsedLength = 0.0;
+    try {
+      if (map['length'] is num) {
+        parsedLength = (map['length'] as num).toDouble();
+      } else if (map['length'] != null) {
+        parsedLength = double.tryParse(map['length'].toString()) ?? 0.0;
+      }
+    } catch (_) {
+      parsedLength = 0.0;
+    }
+
+    bool parseBool(dynamic v) {
+      if (v == null) return false;
+      if (v is int) return v == 1;
+      if (v is bool) return v;
+      final s = v.toString().toLowerCase();
+      return s == '1' || s == 'true' || s == 'yes';
+    }
+
     return Hike(
       id: map['id'] as int?,
       name: map['name'] as String,
       location: map['location'] as String,
       date: map['date'] as String,
-      length: map['length'] as double,
+      length: parsedLength,
       difficulty: map['difficulty'] as String,
       description: map['description'] as String?,
       // Chuyển int thành bool
-      isComplete: (map['isComplete'] as int) == 1,
-      isRemarkable: (map['isRemarkable'] as int) == 1,
+      isComplete: parseBool(map['isComplete']),
+      isRemarkable: parseBool(map['isRemarkable']),
       // observations sẽ được thêm vào sau khi lấy từ database
       observations: [],
     );

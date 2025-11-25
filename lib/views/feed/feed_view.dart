@@ -7,6 +7,7 @@ import '../../models/hike.dart';
 import 'empty_feed_view.dart';
 import 'widgets/feed_card.dart';
 import '../search/search_view.dart';
+import '../../db/app_db.dart';
 
 class FeedView extends StatefulWidget {
   const FeedView({super.key});
@@ -34,6 +35,8 @@ class _FeedViewState extends State<FeedView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<HikeViewModel>(context, listen: false);
       viewModel.initialize();
+      // Also ensure feed category is loaded directly (helps when pagination doesn't add items)
+      viewModel.loadFeed();
     });
     _controller.addListener(_onScroll);
   }
@@ -120,7 +123,7 @@ class _FeedViewState extends State<FeedView> {
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: Column(
                   children: [
-                    _buildHeader(colors),
+                    _buildHeader(colors, viewModel),
                     const SizedBox(height: 4),
                     _buildFilters(colors, viewModel),
                     const SizedBox(height: 8),
@@ -207,7 +210,7 @@ class _FeedViewState extends State<FeedView> {
   }
 
   // HEADER
-  Widget _buildHeader(_FeedColors colors) {
+  Widget _buildHeader(_FeedColors colors, HikeViewModel viewModel) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: colors.lightGrey.withOpacity(0.9),
@@ -237,6 +240,24 @@ class _FeedViewState extends State<FeedView> {
               );
             },
             icon: const Icon(Icons.search, size: 28, color: Color(0xFF1F2937)),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () async {
+              // Debug: show DB counts and feed length
+              try {
+                final total = await AppDatabase.instance.getHikesCount();
+                final completed = viewModel.feed.length;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('DB total: $total  |  Feed length: $completed')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error reading DB counts: $e')),
+                );
+              }
+            },
+            icon: const Icon(Icons.info_outline, size: 24, color: Color(0xFF6B7280)),
           ),
         ],
       ),

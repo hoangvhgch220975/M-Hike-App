@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../db/app_db.dart';
 import '../../models/hike.dart';
 import '../feed/feed_view.dart';
@@ -19,9 +20,15 @@ class _SearchViewState extends State<SearchView> {
   List<Hike> _results = [];
   String _query = '';
 
+  // Recent searches (most recent first)
+  List<String> _recent = [];
+  static const String _prefsKey = 'recent_searches';
+  static const int _maxRecent = 3;
+
   @override
   void initState() {
     super.initState();
+    _loadRecent();
   }
 
   @override
@@ -29,6 +36,43 @@ class _SearchViewState extends State<SearchView> {
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRecent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_prefsKey) ?? [];
+    if (!mounted) return;
+    setState(() => _recent = list);
+  }
+
+  Future<void> _saveSearch(String q) async {
+    final value = q.trim();
+    if (value.isEmpty) return;
+    // Move to front, remove duplicates
+    _recent.removeWhere((r) => r.toLowerCase() == value.toLowerCase());
+    _recent.insert(0, value);
+    if (_recent.length > _maxRecent) _recent = _recent.sublist(0, _maxRecent);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsKey, _recent);
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _removeRecent(String value) async {
+    _recent.removeWhere((r) => r == value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsKey, _recent);
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _clearRecent() async {
+    _recent.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _onChanged(String value) {
@@ -62,6 +106,14 @@ class _SearchViewState extends State<SearchView> {
     });
   }
 
+  void _onSubmitted(String v) {
+    final value = v.trim();
+    if (value.isEmpty) return;
+    _saveSearch(value);
+    _onChanged(value);
+    FocusScope.of(context).unfocus();
+  }
+
   void _clear() {
     _controller.clear();
     _debounce?.cancel();
@@ -70,6 +122,15 @@ class _SearchViewState extends State<SearchView> {
       _results = [];
       _isSearching = false;
     });
+  }
+
+  void _onResultTap(Hike hike) {
+    // Save the search term and show a short placeholder action.
+    _saveSearch(hike.name);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Open hike detail (not implemented)')),
+    );
+    // TODO: navigate to hike detail page when implemented
   }
 
   @override
@@ -114,7 +175,7 @@ class _SearchViewState extends State<SearchView> {
                     )
                   : null,
             ),
-            onSubmitted: (v) => _onChanged(v),
+            onSubmitted: _onSubmitted,
           ),
         ),
         actions: [
@@ -163,9 +224,7 @@ class _SearchViewState extends State<SearchView> {
           distance: '${hike.length.toStringAsFixed(1)} km',
           difficulty: hike.difficulty,
           imageUrl: 'lib/assets/images/imageholder.png', // placeholder; replace if hike has image
-          onTap: () {
-            // TODO: navigate to hike detail view
-          },
+          onTap: () => _onResultTap(hike),
         );
       },
       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -198,23 +257,71 @@ class _SearchViewState extends State<SearchView> {
   Widget _buildSuggestions() {
     // Simple static suggestions — you can replace these with recent searches or top hikes
     final suggestions = ['Lakeview', 'Emerald', 'Lakeside', 'Skyline'];
-    return ListView.separated(
+
+    // Build a combined list: recent searches first (if any), then static suggestions
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemBuilder: (context, index) {
-        final s = suggestions[index];
-        return ListTile(
-          tileColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text(s, style: const TextStyle(fontWeight: FontWeight.w600)),
-          leading: const Icon(Icons.history, color: Color(0xFF6B7280)),
-          onTap: () {
-            _controller.text = s;
-            _onChanged(s);
-          },
-        );
-      },
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemCount: suggestions.length,
+      children: [
+        if (_recent.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Recent', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              TextButton(
+                onPressed: _clearRecent,
+                child: const Text('Clear', style: TextStyle(color: Colors.grey)),
+              )
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._recent.map((s) {
+            return Column(
+              children: [
+                ListTile(
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  title: Text(s, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  leading: const Icon(Icons.history, color: Color(0xFF6B7280)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                    onPressed: () => _removeRecent(s),
+                  ),
+                  onTap: () {
+                    _controller.text = s;
+                    _saveSearch(s);
+                    _onChanged(s);
+                    FocusScope.of(context).unfocus();
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            );
+          }),
+          const Divider(),
+        ],
+
+        const SizedBox(height: 8),
+        const Text('Suggestions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        const SizedBox(height: 8),
+        ...suggestions.map((s) {
+          return Column(
+            children: [
+              ListTile(
+                tileColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                title: Text(s, style: const TextStyle(fontWeight: FontWeight.w600)),
+                leading: const Icon(Icons.trending_up, color: Color(0xFF6B7280)),
+                onTap: () {
+                  _controller.text = s;
+                  _saveSearch(s);
+                  _onChanged(s);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          );
+        }),
+      ],
     );
   }
 }

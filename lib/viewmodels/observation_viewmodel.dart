@@ -45,7 +45,7 @@ class ObservationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final newItems = await DbHelper.instance.getObservationsByHikePaged(
+      final newItems = await AppDatabase.instance.getObservationsByHikePaged(
         currentHikeId!,
         page,
         pageSize,
@@ -219,10 +219,10 @@ class ObservationViewModel extends ChangeNotifier {
       int observationId;
       if (id == null) {
         // Create new
-        observationId = await DbHelper.instance.insertObservation(observation);
+        observationId = await AppDatabase.instance.insertObservation(observation);
       } else {
         // Update existing
-        await DbHelper.instance.updateObservation(observation);
+        await AppDatabase.instance.updateObservation(observation);
         observationId = id;
       }
 
@@ -230,9 +230,9 @@ class ObservationViewModel extends ChangeNotifier {
       for (final mediaItem in media) {
         mediaItem.observationId = observationId;
         if (mediaItem.id == null) {
-          await DbHelper.instance.insertMediaItem(mediaItem);
+          await AppDatabase.instance.insertMediaItem(mediaItem);
         } else {
-          await DbHelper.instance.updateMediaItem(mediaItem);
+          await AppDatabase.instance.updateMediaItem(mediaItem);
         }
       }
 
@@ -251,7 +251,7 @@ class ObservationViewModel extends ChangeNotifier {
   // Delete observation
   Future<bool> deleteObservation(int id) async {
     try {
-      await DbHelper.instance.deleteObservation(id);
+      await AppDatabase.instance.deleteObservation(id);
 
       // Remove from local list
       observations.removeWhere((obs) => obs.id == id);
@@ -267,7 +267,7 @@ class ObservationViewModel extends ChangeNotifier {
   // Get observation by id
   Future<Observation?> getObservationById(int id) async {
     try {
-      return await DbHelper.instance.getObservationById(id);
+      return await AppDatabase.instance.getObservationById(id);
     } catch (e) {
       debugPrint('Error getting observation: $e');
       return null;
@@ -277,7 +277,7 @@ class ObservationViewModel extends ChangeNotifier {
   // Get all observations for a hike
   Future<void> loadAllObservations(int hikeId) async {
     try {
-      observations = await DbHelper.instance.getObservationsByHike(hikeId);
+      observations = await AppDatabase.instance.getObservationsByHike(hikeId);
       currentHikeId = hikeId;
       notifyListeners();
     } catch (e) {
@@ -285,4 +285,3 @@ class ObservationViewModel extends ChangeNotifier {
     }
   }
 }
-

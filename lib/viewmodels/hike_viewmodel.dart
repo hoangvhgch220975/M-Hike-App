@@ -50,7 +50,7 @@ class HikeViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final newItems = await DbHelper.instance.getHikesPaged(page, pageSize);
+      final newItems = await AppDatabase.instance.getHikesPaged(page, pageSize);
 
       if (newItems.isEmpty) {
         hasMore = false;
@@ -70,9 +70,9 @@ class HikeViewModel extends ChangeNotifier {
   // Refresh categories based on filters (load from database)
   Future<void> _refreshCategories() async {
     try {
-      feed = await DbHelper.instance.getCompletedHikes();
-      plan = await DbHelper.instance.getPlannedHikes();
-      remarkable = await DbHelper.instance.getRemarkableHikes();
+      feed = await AppDatabase.instance.getCompletedHikes();
+      plan = await AppDatabase.instance.getPlannedHikes();
+      remarkable = await AppDatabase.instance.getRemarkableHikes();
     } catch (e) {
       debugPrint('Error refreshing categories: $e');
     }
@@ -145,10 +145,10 @@ class HikeViewModel extends ChangeNotifier {
 
       if (id == null) {
         // Create new
-        await DbHelper.instance.insertHike(hike);
+        await AppDatabase.instance.insertHike(hike);
       } else {
         // Update existing
-        await DbHelper.instance.updateHike(hike);
+        await AppDatabase.instance.updateHike(hike);
       }
 
       // Refresh list
@@ -163,7 +163,7 @@ class HikeViewModel extends ChangeNotifier {
   // Delete hike
   Future<bool> deleteHike(int id) async {
     try {
-      await DbHelper.instance.deleteHike(id);
+      await AppDatabase.instance.deleteHike(id);
 
       // Remove from local list
       hikes.removeWhere((h) => h.id == id);
@@ -181,7 +181,7 @@ class HikeViewModel extends ChangeNotifier {
   Future<void> toggleComplete(int id) async {
     final hike = hikes.firstWhere((h) => h.id == id);
     hike.isComplete = !hike.isComplete;
-    await DbHelper.instance.updateHike(hike);
+    await AppDatabase.instance.updateHike(hike);
     _refreshCategories();
     notifyListeners();
   }
@@ -190,7 +190,7 @@ class HikeViewModel extends ChangeNotifier {
   Future<void> toggleRemarkable(int id) async {
     final hike = hikes.firstWhere((h) => h.id == id);
     hike.isRemarkable = !hike.isRemarkable;
-    await DbHelper.instance.updateHike(hike);
+    await AppDatabase.instance.updateHike(hike);
     _refreshCategories();
     notifyListeners();
   }
@@ -198,7 +198,7 @@ class HikeViewModel extends ChangeNotifier {
   // Get hike by id
   Future<Hike?> getHikeById(int id) async {
     try {
-      return await DbHelper.instance.getHikeById(id);
+      return await AppDatabase.instance.getHikeById(id);
     } catch (e) {
       debugPrint('Error getting hike: $e');
       return null;
@@ -212,7 +212,7 @@ class HikeViewModel extends ChangeNotifier {
     }
 
     try {
-      return await DbHelper.instance.searchHikes(query);
+      return await AppDatabase.instance.searchHikes(query);
     } catch (e) {
       debugPrint('Error searching hikes: $e');
       return [];
@@ -222,7 +222,7 @@ class HikeViewModel extends ChangeNotifier {
   // Load completed hikes (Feed)
   Future<void> loadFeed({int? limit}) async {
     try {
-      feed = await DbHelper.instance.getCompletedHikes(limit: limit);
+      feed = await AppDatabase.instance.getCompletedHikes(limit: limit);
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading feed: $e');
@@ -232,7 +232,7 @@ class HikeViewModel extends ChangeNotifier {
   // Load planned hikes (Plan)
   Future<void> loadPlan({int? limit}) async {
     try {
-      plan = await DbHelper.instance.getPlannedHikes(limit: limit);
+      plan = await AppDatabase.instance.getPlannedHikes(limit: limit);
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading plan: $e');
@@ -242,7 +242,7 @@ class HikeViewModel extends ChangeNotifier {
   // Load remarkable hikes
   Future<void> loadRemarkable({int? limit}) async {
     try {
-      remarkable = await DbHelper.instance.getRemarkableHikes(limit: limit);
+      remarkable = await AppDatabase.instance.getRemarkableHikes(limit: limit);
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading remarkable: $e');
@@ -252,7 +252,7 @@ class HikeViewModel extends ChangeNotifier {
   // Load recent hikes
   Future<List<Hike>> loadRecent({int limit = 10}) async {
     try {
-      return await DbHelper.instance.getRecentHikes(limit: limit);
+      return await AppDatabase.instance.getRecentHikes(limit: limit);
     } catch (e) {
       debugPrint('Error loading recent hikes: $e');
       return [];
@@ -262,7 +262,7 @@ class HikeViewModel extends ChangeNotifier {
   // Filter hikes by difficulty
   Future<List<Hike>> filterByDifficulty(String difficulty) async {
     try {
-      return await DbHelper.instance.getHikesByDifficulty(difficulty);
+      return await AppDatabase.instance.getHikesByDifficulty(difficulty);
     } catch (e) {
       debugPrint('Error filtering by difficulty: $e');
       return [];
@@ -279,7 +279,7 @@ class HikeViewModel extends ChangeNotifier {
     String? orderBy,
   }) async {
     try {
-      return await DbHelper.instance.filterHikes(
+      return await AppDatabase.instance.filterHikes(
         difficulty: difficulty,
         isComplete: isComplete,
         isRemarkable: isRemarkable,
@@ -296,11 +296,10 @@ class HikeViewModel extends ChangeNotifier {
   // Get total count
   Future<int> getTotalCount() async {
     try {
-      return await DbHelper.instance.getHikesCount();
+      return await AppDatabase.instance.getHikesCount();
     } catch (e) {
       debugPrint('Error getting count: $e');
       return 0;
     }
   }
 }
-
