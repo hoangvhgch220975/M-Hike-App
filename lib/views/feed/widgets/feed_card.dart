@@ -2,11 +2,83 @@
 
 import 'package:flutter/material.dart';
 import '../../../models/hike.dart';
+import '../../../db/app_db.dart';
+import '../../shared/notification_helper.dart';
 
-class FeedCard extends StatelessWidget {
+class FeedCard extends StatefulWidget {
   final Hike hike;
+  final VoidCallback? onRemarkableChanged;
 
-  const FeedCard({super.key, required this.hike});
+  const FeedCard({
+    super.key,
+    required this.hike,
+    this.onRemarkableChanged,
+  });
+
+  @override
+  State<FeedCard> createState() => _FeedCardState();
+}
+
+class _FeedCardState extends State<FeedCard> {
+  late bool _isRemarkable;
+
+  @override
+  void initState() {
+    super.initState();
+    _isRemarkable = widget.hike.isRemarkable;
+  }
+
+  Future<void> _toggleRemarkable() async {
+    final newValue = !_isRemarkable;
+
+    // Update in database
+    final updatedHike = Hike(
+      id: widget.hike.id,
+      name: widget.hike.name,
+      location: widget.hike.location,
+      date: widget.hike.date,
+      length: widget.hike.length,
+      difficulty: widget.hike.difficulty,
+      description: widget.hike.description,
+      isComplete: widget.hike.isComplete,
+      isRemarkable: newValue,
+    );
+
+    try {
+      await AppDatabase.instance.updateHike(updatedHike);
+
+      setState(() {
+        _isRemarkable = newValue;
+      });
+
+      // Show notification
+      if (newValue) {
+        if (mounted) {
+          NotificationHelper.showSuccess(
+            context,
+            '⭐ "${widget.hike.name}" marked as remarkable!',
+          );
+        }
+      } else {
+        if (mounted) {
+          NotificationHelper.showInfo(
+            context,
+            'Removed remarkable status from "${widget.hike.name}"',
+          );
+        }
+      }
+
+      // Notify parent to refresh
+      widget.onRemarkableChanged?.call();
+    } catch (e) {
+      if (mounted) {
+        NotificationHelper.showError(
+          context,
+          'Failed to update remarkable status',
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,19 +98,54 @@ class FeedCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE - Show default hike image
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(28),
-              topRight: Radius.circular(28),
-            ),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Image.asset(
-                'lib/assets/images/imageholder.png',
-                fit: BoxFit.cover,
+          // IMAGE - Show default hike image with remarkable button
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.asset(
+                    'lib/assets/images/imageholder.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
-            ),
+              // Remarkable button overlay
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: _toggleRemarkable,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _isRemarkable
+                          ? const Color(0xFFFFD700)
+                          : Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _isRemarkable ? Icons.star : Icons.star_border,
+                      color: _isRemarkable
+                          ? Colors.white
+                          : const Color(0xFF6B7280),
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
 
           // CONTENT
@@ -48,7 +155,7 @@ class FeedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  hike.name,
+                  widget.hike.name,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -57,11 +164,11 @@ class FeedCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
 
-                _iconText(Icons.location_on, hike.location),
+                _iconText(Icons.location_on, widget.hike.location),
                 const SizedBox(height: 4),
-                _iconText(Icons.calendar_today, hike.date),
+                _iconText(Icons.calendar_today, widget.hike.date),
                 const SizedBox(height: 4),
-                _iconText(Icons.straighten, '${hike.length.toStringAsFixed(1)} km'),
+                _iconText(Icons.straighten, '${widget.hike.length.toStringAsFixed(1)} km'),
 
                 const SizedBox(height: 12),
 
@@ -84,7 +191,7 @@ class FeedCard extends StatelessWidget {
     // Difficulty tag
     Color difficultyColor;
     IconData difficultyIcon;
-    switch (hike.difficulty) {
+    switch (widget.hike.difficulty) {
       case 'Easy':
         difficultyColor = Colors.green;
         difficultyIcon = Icons.directions_walk;
@@ -101,16 +208,16 @@ class FeedCard extends StatelessWidget {
         difficultyColor = Colors.grey;
         difficultyIcon = Icons.help_outline;
     }
-    tags.add(FeedTag(hike.difficulty, difficultyColor, difficultyIcon));
+    tags.add(FeedTag(widget.hike.difficulty, difficultyColor, difficultyIcon));
 
     // Completed tag
-    if (hike.isComplete) {
+    if (widget.hike.isComplete) {
       tags.add(const FeedTag("Completed", Color(0xFF225749)));
     }
 
-    // Remarkable tag
-    if (hike.isRemarkable) {
-      tags.add(const FeedTag("Remarkable 🌟", Colors.amber));
+    // Remarkable tag (use state variable for real-time updates)
+    if (_isRemarkable) {
+      tags.add(const FeedTag("Remarkable 🌟", Color(0xFFFFD700)));
     }
 
     return tags;

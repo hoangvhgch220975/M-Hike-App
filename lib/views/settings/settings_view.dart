@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'about.dart';
-import 'statistics.dart';
+import 'extra/about.dart';
+import 'extra/statistics.dart';
+import '../../services/permission_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -11,9 +12,165 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   bool isDarkMode = false;
-  bool notificationsEnabled = true;
-  bool locationEnabled = true;
+  bool notificationsEnabled = false;
+  bool locationEnabled = false;
   bool cameraEnabled = false;
+  bool galleryEnabled = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissionStatuses();
+  }
+
+  // Load current permission statuses
+  Future<void> _loadPermissionStatuses() async {
+    final camera = await PermissionService.isCameraGranted();
+    final gallery = await PermissionService.isGalleryGranted();
+    final location = await PermissionService.isLocationGranted();
+    final notification = await PermissionService.isNotificationGranted();
+
+    setState(() {
+      cameraEnabled = camera;
+      galleryEnabled = gallery;
+      locationEnabled = location;
+      notificationsEnabled = notification;
+      _isLoading = false;
+    });
+  }
+
+  // Handle camera permission toggle
+  Future<void> _handleCameraPermission(bool value) async {
+    if (value) {
+      // Request permission
+      final granted = await PermissionService.requestCamera();
+      setState(() {
+        cameraEnabled = granted;
+      });
+
+      if (!granted && mounted) {
+        PermissionService.showPermissionDeniedDialog(context, 'Camera');
+      }
+    } else {
+      // Show dialog to inform user to disable in settings
+      if (mounted) {
+        _showDisablePermissionDialog('Camera');
+      }
+    }
+  }
+
+  // Handle gallery permission toggle
+  Future<void> _handleGalleryPermission(bool value) async {
+    if (value) {
+      final granted = await PermissionService.requestGallery();
+      setState(() {
+        galleryEnabled = granted;
+      });
+
+      if (!granted && mounted) {
+        PermissionService.showPermissionDeniedDialog(context, 'Gallery');
+      }
+    } else {
+      if (mounted) {
+        _showDisablePermissionDialog('Gallery');
+      }
+    }
+  }
+
+  // Handle location permission toggle
+  Future<void> _handleLocationPermission(bool value) async {
+    if (value) {
+      final granted = await PermissionService.requestLocation();
+      setState(() {
+        locationEnabled = granted;
+      });
+
+      if (!granted && mounted) {
+        PermissionService.showPermissionDeniedDialog(context, 'Location');
+      }
+    } else {
+      if (mounted) {
+        _showDisablePermissionDialog('Location');
+      }
+    }
+  }
+
+  // Handle notification permission toggle
+  Future<void> _handleNotificationPermission(bool value) async {
+    if (value) {
+      final granted = await PermissionService.requestNotification();
+      setState(() {
+        notificationsEnabled = granted;
+      });
+
+      if (!granted && mounted) {
+        PermissionService.showPermissionDeniedDialog(context, 'Notification');
+      }
+    } else {
+      if (mounted) {
+        _showDisablePermissionDialog('Notification');
+      }
+    }
+  }
+
+  // Show dialog to inform user how to disable permission
+  void _showDisablePermissionDialog(String permissionName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            const Icon(
+              Icons.info_outline,
+              color: Color(0xFF2E7D32),
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Disable Permission',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'To disable $permissionName permission, please go to your device Settings > Apps > M-Hike > Permissions.',
+          style: const TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              PermissionService.openSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,84 +193,86 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: Column(
-          children: [
-            _buildToggleItem(
-              icon: Icons.light_mode,
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Dark/Light Mode',
-              value: isDarkMode,
-              onChanged: (val) {
-                setState(() {
-                  isDarkMode = val;
-                });
-              },
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF2E7D32),
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: Column(
+                children: [
+                  _buildToggleItem(
+                    icon: Icons.light_mode,
+                    iconColor: const Color(0xFF2E7D32),
+                    title: 'Dark/Light Mode',
+                    value: isDarkMode,
+                    onChanged: (val) {
+                      setState(() {
+                        isDarkMode = val;
+                      });
+                    },
+                  ),
+                  const Divider(height: 1),
+                  _buildToggleItem(
+                    icon: Icons.notifications,
+                    iconColor: const Color(0xFF2E7D32),
+                    title: 'Notification Settings',
+                    value: notificationsEnabled,
+                    onChanged: _handleNotificationPermission,
+                  ),
+                  const Divider(height: 1),
+                  _buildToggleItem(
+                    icon: Icons.location_on,
+                    iconColor: const Color(0xFF0288D1),
+                    title: 'Location Permissions',
+                    value: locationEnabled,
+                    onChanged: _handleLocationPermission,
+                  ),
+                  const Divider(height: 1),
+                  _buildToggleItem(
+                    icon: Icons.photo_camera,
+                    iconColor: const Color(0xFF0288D1),
+                    title: 'Camera Permissions',
+                    value: cameraEnabled,
+                    onChanged: _handleCameraPermission,
+                  ),
+                  const Divider(height: 1),
+                  _buildToggleItem(
+                    icon: Icons.photo_library,
+                    iconColor: const Color(0xFF0288D1),
+                    title: 'Gallery Permissions',
+                    value: galleryEnabled,
+                    onChanged: _handleGalleryPermission,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildNavigationItem(
+                    icon: Icons.bar_chart,
+                    iconColor: const Color(0xFF2E7D32),
+                    title: 'Statistics',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const StatisticsView()),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
+                  _buildNavigationItem(
+                    icon: Icons.info,
+                    iconColor: const Color(0xFF5D4037),
+                    title: 'About',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AboutView()),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-            const Divider(height: 1),
-            _buildToggleItem(
-              icon: Icons.notifications,
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Notification Settings',
-              value: notificationsEnabled,
-              onChanged: (val) {
-                setState(() {
-                  notificationsEnabled = val;
-                });
-              },
-            ),
-            const Divider(height: 1),
-            _buildToggleItem(
-              icon: Icons.location_on,
-              iconColor: const Color(0xFF0288D1),
-              title: 'Location Permissions',
-              value: locationEnabled,
-              onChanged: (val) {
-                setState(() {
-                  locationEnabled = val;
-                });
-              },
-            ),
-            const Divider(height: 1),
-            _buildToggleItem(
-              icon: Icons.photo_camera,
-              iconColor: const Color(0xFF0288D1),
-              title: 'Camera Permissions',
-              value: cameraEnabled,
-              onChanged: (val) {
-                setState(() {
-                  cameraEnabled = val;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildNavigationItem(
-              icon: Icons.bar_chart,
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Statistics',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const StatisticsView()),
-                );
-              },
-            ),
-            const Divider(height: 1),
-            _buildNavigationItem(
-              icon: Icons.info,
-              iconColor: const Color(0xFF5D4037),
-              title: 'About',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AboutView()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 

@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../db/app_db.dart';
+import '../../../db/app_db.dart';
 
 class StatisticsView extends StatefulWidget {
   const StatisticsView({super.key});

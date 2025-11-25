@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../db/app_db.dart';
 import '../../models/hike.dart';
+import '../../viewmodels/hike_viewmodel.dart';
 import 'empty_remarkable_view.dart';
 import 'widgets/remarkable_card.dart';
 
@@ -147,11 +149,14 @@ class _RemarkableViewState extends State<RemarkableView> {
           ),
         ),
       ),
-      body: ListView.builder(
-        controller: _controller,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: _displayed.length + (_hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
+      body: RefreshIndicator(
+        color: const Color(0xFF2E7D32),
+        onRefresh: _loadAllRemarkable,
+        child: ListView.builder(
+          controller: _controller,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          itemCount: _displayed.length + (_hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
           if (index == _displayed.length) {
             // footer: show loading spinner while searching for more; if none, footer will be hidden
             return Padding(
@@ -184,8 +189,16 @@ class _RemarkableViewState extends State<RemarkableView> {
             onTap: () {
               // TODO: navigate to hike detail when implemented
             },
+            onRemarkableChanged: () {
+              // Reload the remarkable hikes list
+              _loadAllRemarkable();
+              // Refresh the feed as well
+              final vm = Provider.of<HikeViewModel>(context, listen: false);
+              vm.loadFeed();
+            },
           );
         },
+        ),
       ),
     );
   }

@@ -43,6 +43,8 @@ dependencies:
   http: ^1.1.0
   provider: ^6.1.2
   shared_preferences: ^2.1.0
+  fl_chart: ^0.69.0
+  permission_handler: ^11.0.1
 
 
 

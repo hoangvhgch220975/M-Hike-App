@@ -130,11 +130,17 @@ class _FeedViewState extends State<FeedView> {
                     Expanded(
                       child: _displayed.isEmpty && viewModel.isLoading
                           ? const Center(child: CircularProgressIndicator())
-                          : ListView.builder(
-                              controller: _controller,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              itemCount: _displayed.length + (_hasMore ? 1 : 0),
-                              itemBuilder: (context, index) {
+                          : RefreshIndicator(
+                              color: const Color(0xFF2E7D32),
+                              onRefresh: () async {
+                                await viewModel.loadFeed();
+                                await viewModel.loadRemarkable();
+                              },
+                              child: ListView.builder(
+                                controller: _controller,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                itemCount: _displayed.length + (_hasMore ? 1 : 0),
+                                itemBuilder: (context, index) {
                                 if (index == _displayed.length) {
                                   // footer
                                   return Padding(
@@ -157,10 +163,19 @@ class _FeedViewState extends State<FeedView> {
                                 final hike = _displayed[index];
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 24),
-                                  child: FeedCard(hike: hike),
+                                  child: FeedCard(
+                                    hike: hike,
+                                    onRemarkableChanged: () {
+                                      // Refresh the feed data
+                                      final vm = Provider.of<HikeViewModel>(context, listen: false);
+                                      vm.loadFeed();
+                                      vm.loadRemarkable();
+                                    },
+                                  ),
                                 );
                               },
                             ),
+                          ),
                     ),
                   ],
                 ),

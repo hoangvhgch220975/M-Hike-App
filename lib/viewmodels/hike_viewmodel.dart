@@ -195,6 +195,21 @@ class HikeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Mark hike as completed
+  Future<void> markHikeAsCompleted(int id) async {
+    try {
+      final hike = await AppDatabase.instance.getHikeById(id);
+      if (hike != null) {
+        hike.isComplete = true;
+        await AppDatabase.instance.updateHike(hike);
+        await _refreshCategories();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error marking hike as completed: $e');
+    }
+  }
+
   // Get hike by id
   Future<Hike?> getHikeById(int id) async {
     try {

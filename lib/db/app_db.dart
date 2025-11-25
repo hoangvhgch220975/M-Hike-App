@@ -138,6 +138,19 @@ class AppDatabase {
     );
   }
 
+  // Lấy tất cả Hikes (không phân trang).
+  Future<List<Hike>> getAllHikes() async {
+    Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      _hikeTable,
+      orderBy: 'date DESC',
+    );
+
+    return List.generate(maps.length, (i) {
+      return Hike.fromMap(maps[i]);
+    });
+  }
+
   /// Lấy danh sách Hike theo trang với kích thước tùy chỉnh (cho Infinity Scroll).
   Future<List<Hike>> getHikesPaged(int page, int pageSize) async {
     Database db = await instance.database;

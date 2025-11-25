@@ -1,16 +1,89 @@
 import 'package:flutter/material.dart';
 import '../../../models/hike.dart';
+import '../../../db/app_db.dart';
+import '../../shared/notification_helper.dart';
 
-class RemarkableCard extends StatelessWidget {
+class RemarkableCard extends StatefulWidget {
   final Hike hike;
   final VoidCallback? onTap;
+  final VoidCallback? onRemarkableChanged;
 
-  const RemarkableCard({super.key, required this.hike, this.onTap});
+  const RemarkableCard({
+    super.key,
+    required this.hike,
+    this.onTap,
+    this.onRemarkableChanged,
+  });
+
+  @override
+  State<RemarkableCard> createState() => _RemarkableCardState();
+}
+
+class _RemarkableCardState extends State<RemarkableCard> {
+  late bool _isRemarkable;
+
+  @override
+  void initState() {
+    super.initState();
+    _isRemarkable = widget.hike.isRemarkable;
+  }
+
+  Future<void> _toggleRemarkable() async {
+    final newValue = !_isRemarkable;
+
+    // Update in database
+    final updatedHike = Hike(
+      id: widget.hike.id,
+      name: widget.hike.name,
+      location: widget.hike.location,
+      date: widget.hike.date,
+      length: widget.hike.length,
+      difficulty: widget.hike.difficulty,
+      description: widget.hike.description,
+      isComplete: widget.hike.isComplete,
+      isRemarkable: newValue,
+    );
+
+    try {
+      await AppDatabase.instance.updateHike(updatedHike);
+
+      setState(() {
+        _isRemarkable = newValue;
+      });
+
+      // Show notification
+      if (newValue) {
+        if (mounted) {
+          NotificationHelper.showSuccess(
+            context,
+            '⭐ "${widget.hike.name}" marked as remarkable!',
+          );
+        }
+      } else {
+        if (mounted) {
+          NotificationHelper.showInfo(
+            context,
+            'Removed remarkable status from "${widget.hike.name}"',
+          );
+        }
+      }
+
+      // Notify parent to refresh
+      widget.onRemarkableChanged?.call();
+    } catch (e) {
+      if (mounted) {
+        NotificationHelper.showError(
+          context,
+          'Failed to update remarkable status',
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Container(
@@ -28,21 +101,56 @@ class RemarkableCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image (use placeholder asset as default)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                child: SizedBox(
-                  height: 200,
-                  width: double.infinity,
-                  child: Image.asset(
-                    'lib/assets/images/imageholder.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.image, size: 48, color: Colors.grey),
+              // Image (use placeholder asset as default) with remarkable button
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    child: SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: Image.asset(
+                        'lib/assets/images/imageholder.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.image, size: 48, color: Colors.grey),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  // Remarkable button overlay
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: _toggleRemarkable,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _isRemarkable
+                              ? const Color(0xFFFFD700)
+                              : Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _isRemarkable ? Icons.star : Icons.star_border,
+                          color: _isRemarkable
+                              ? Colors.white
+                              : const Color(0xFF6B7280),
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               Padding(
@@ -50,24 +158,25 @@ class RemarkableCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0288D1).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: const Text(
-                        'Remarkable 🌟',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF0288D1),
-                          fontWeight: FontWeight.w500,
+                    if (_isRemarkable)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD700).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: const Text(
+                          'Remarkable 🌟',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFFD700),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 8),
                     Text(
-                      hike.name,
+                      widget.hike.name,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -75,14 +184,14 @@ class RemarkableCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      hike.location,
+                      widget.hike.location,
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
                     // optional description
-                    if (hike.description != null && hike.description!.isNotEmpty)
+                    if (widget.hike.description != null && widget.hike.description!.isNotEmpty)
                       Text(
-                        hike.description!,
+                        widget.hike.description!,
                         style: const TextStyle(fontSize: 14, color: Color(0xFF6C757D), height: 1.4),
                       ),
                   ],
