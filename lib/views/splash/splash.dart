@@ -85,6 +85,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: Center(
         child: Stack(
@@ -105,13 +107,9 @@ class _SplashScreenState extends State<SplashScreen>
 
                 const SizedBox(height: 24),
 
-                const Text(
-                  "M-Hike",
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
-                  ),
+                Text(
+                  'M-Hike',
+                  style: theme.textTheme.headlineLarge?.copyWith(fontSize: 36, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -138,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
                           widthFactor: _progress.value,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.green,
+                              color: theme.colorScheme.primary,
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),

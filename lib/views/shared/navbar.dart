@@ -25,8 +25,9 @@ class _MainNavbarState extends State<MainNavbar> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
 
       // Hiển thị màn hình tương ứng với index hiện tại với animation
       body: AnimatedSwitcher(
@@ -39,7 +40,7 @@ class _MainNavbarState extends State<MainNavbar> {
       // Feature 3: BottomNavigationBar hiện đại với Light Theme
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -55,48 +56,30 @@ class _MainNavbarState extends State<MainNavbar> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(
-                  icon: Icons.terrain_rounded,
-                  label: 'Feed',
-                  index: 0,
-                  color: const Color(0xFF13EC37),
-                ),
-                _buildNavItem(
-                  icon: Icons.map_rounded,
-                  label: 'Plan',
-                  index: 1,
-                  color: const Color(0xFF3B82F6),
-                ),
-                _buildNavItem(
-                  icon: Icons.star_rounded,
-                  label: 'Remarkable',
-                  index: 2,
-                  color: const Color(0xFFFBBF24),
-                ),
-                _buildNavItem(
-                  icon: Icons.settings_rounded,
-                  label: 'Settings',
-                  index: 3,
-                  color: const Color(0xFF8B5CF6),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+                _buildNavItem(icon: Icons.terrain_rounded, label: 'Feed', index: 0),
+                _buildNavItem(icon: Icons.map_rounded, label: 'Plan', index: 1),
+                _buildNavItem(icon: Icons.star_rounded, label: 'Remarkable', index: 2),
+                _buildNavItem(icon: Icons.settings_rounded, label: 'Settings', index: 3),
+               ],
+             ),
+           ),
+         ),
+       ),
+     );
+   }
 
   // Custom nav item với animation đẹp
   Widget _buildNavItem({
     required IconData icon,
     required String label,
     required int index,
-    required Color color,
+    Color? color,
   }) {
-    final isSelected = _currentIndex == index;
+     final isSelected = _currentIndex == index;
+     final theme = Theme.of(context);
+    final selColor = color ?? theme.colorScheme.primary;
 
-    return GestureDetector(
+     return GestureDetector(
       onTap: () {
         setState(() {
           _currentIndex = index;
@@ -107,7 +90,7 @@ class _MainNavbarState extends State<MainNavbar> {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? selColor.withOpacity(0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -119,7 +102,7 @@ class _MainNavbarState extends State<MainNavbar> {
               child: Icon(
                 icon,
                 size: isSelected ? 28 : 24,
-                color: isSelected ? color : const Color(0xFF9CA3AF),
+                color: isSelected ? selColor : (theme.iconTheme.color ?? const Color(0xFF9CA3AF)).withOpacity(0.9),
               ),
             ),
             const SizedBox(height: 4),
@@ -128,14 +111,14 @@ class _MainNavbarState extends State<MainNavbar> {
               style: TextStyle(
                 fontSize: isSelected ? 12 : 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? color : const Color(0xFF9CA3AF),
+                color: isSelected ? selColor : (theme.textTheme.bodyMedium?.color ?? const Color(0xFF9CA3AF)).withOpacity(0.9),
                 fontFamily: 'PlusJakartaSans',
               ),
               child: Text(label),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+           ],
+         ),
+       ),
+     );
+   }
+ }

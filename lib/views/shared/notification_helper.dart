@@ -69,20 +69,19 @@ class NotificationHelper {
     required Color backgroundColor,
     Duration duration = const Duration(seconds: 3),
   }) {
+    final theme = Theme.of(context);
+    final onBackground = theme.colorScheme.onPrimary; // good for colored snackbars
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 24),
+            Icon(icon, color: onBackground, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(color: onBackground, fontSize: 14, fontWeight: FontWeight.w500),
               ),
             ),
           ],
@@ -96,7 +95,7 @@ class NotificationHelper {
         duration: duration,
         action: SnackBarAction(
           label: 'DISMISS',
-          textColor: Colors.white,
+          textColor: onBackground,
           onPressed: () {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
           },
@@ -105,4 +104,3 @@ class NotificationHelper {
     );
   }
 }
-

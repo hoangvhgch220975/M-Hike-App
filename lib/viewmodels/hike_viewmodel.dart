@@ -38,7 +38,11 @@ class HikeViewModel extends ChangeNotifier {
   Future<void> initialize() async {
     page = 0;
     hikes.clear();
+    feed.clear();
+    plan.clear();
+    remarkable.clear();
     hasMore = true;
+    notifyListeners(); // Notify immediately to show empty state
     await loadMore();
   }
 
@@ -73,6 +77,7 @@ class HikeViewModel extends ChangeNotifier {
       feed = await AppDatabase.instance.getCompletedHikes();
       plan = await AppDatabase.instance.getPlannedHikes();
       remarkable = await AppDatabase.instance.getRemarkableHikes();
+      notifyListeners(); // Notify listeners after loading categories
     } catch (e) {
       debugPrint('Error refreshing categories: $e');
     }
@@ -237,30 +242,39 @@ class HikeViewModel extends ChangeNotifier {
   // Load completed hikes (Feed)
   Future<void> loadFeed({int? limit}) async {
     try {
+      feed.clear(); // Clear old data first
       feed = await AppDatabase.instance.getCompletedHikes(limit: limit);
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading feed: $e');
+      feed.clear(); // Clear on error too
+      notifyListeners();
     }
   }
 
   // Load planned hikes (Plan)
   Future<void> loadPlan({int? limit}) async {
     try {
+      plan.clear(); // Clear old data first
       plan = await AppDatabase.instance.getPlannedHikes(limit: limit);
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading plan: $e');
+      plan.clear(); // Clear on error too
+      notifyListeners();
     }
   }
 
   // Load remarkable hikes
   Future<void> loadRemarkable({int? limit}) async {
     try {
+      remarkable.clear(); // Clear old data first
       remarkable = await AppDatabase.instance.getRemarkableHikes(limit: limit);
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading remarkable: $e');
+      remarkable.clear(); // Clear on error too
+      notifyListeners();
     }
   }
 

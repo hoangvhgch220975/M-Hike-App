@@ -7,23 +7,22 @@ class AboutView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'About',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+          style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
       body: SingleChildScrollView(
@@ -35,11 +34,11 @@ class AboutView extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withOpacity(0.06),
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -57,14 +56,7 @@ class AboutView extends StatelessWidget {
             const SizedBox(height: 24),
 
             // App Name
-            const Text(
-              'M-Hike',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1E),
-              ),
-            ),
+            Text('M-Hike', style: theme.textTheme.headlineSmall?.copyWith(fontSize: 32, fontWeight: FontWeight.bold)),
 
             const SizedBox(height: 8),
 
@@ -72,16 +64,12 @@ class AboutView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF2E7D32).withOpacity(0.1),
+                color: colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
+              child: Text(
                 'Version 1.0.0',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E7D32),
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: colorScheme.primary),
               ),
             ),
 
@@ -91,55 +79,55 @@ class AboutView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Text(
+              child: Text(
                 'M-Hike is your ultimate companion for planning and tracking hiking adventures. '
                 'Record your journeys, capture memorable moments, and discover new trails. '
                 'Whether you\'re a casual walker or an experienced mountaineer, M-Hike helps you '
                 'make every hike unforgettable.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.6,
-                  color: Color(0xFF6B7280),
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
               ),
             ),
 
             const SizedBox(height: 32),
 
             // Features Section
-            _buildSectionTitle('Features'),
+            _buildSectionTitle('Features', theme),
             const SizedBox(height: 16),
 
             _buildFeatureItem(
+              context,
               icon: Icons.map,
               title: 'Plan Your Hikes',
               description: 'Create and organize your hiking plans with detailed information',
             ),
             const SizedBox(height: 12),
             _buildFeatureItem(
+              context,
               icon: Icons.camera_alt,
               title: 'Capture Moments',
               description: 'Record observations and photos during your adventures',
             ),
             const SizedBox(height: 12),
             _buildFeatureItem(
+              context,
               icon: Icons.terrain,
               title: 'Track Progress',
               description: 'Monitor your hiking history and achievements',
             ),
             const SizedBox(height: 12),
             _buildFeatureItem(
+              context,
               icon: Icons.star,
               title: 'Mark Remarkable',
               description: 'Highlight your most memorable hiking experiences',
@@ -148,17 +136,17 @@ class AboutView extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Developer Info
-            _buildSectionTitle('Developer'),
+            _buildSectionTitle('Developer', theme),
             const SizedBox(height: 16),
 
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -192,7 +180,7 @@ class AboutView extends StatelessWidget {
                     'University of Greenwich',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: Colors.grey,
                     ),
                   ),
                 ],
@@ -200,7 +188,6 @@ class AboutView extends StatelessWidget {
             ),
 
             const SizedBox(height: 32),
-
 
             // Copyright
             Text(
@@ -228,30 +215,29 @@ class AboutView extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, ThemeData theme) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF1C1C1E),
-      ),
+      style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
     );
   }
 
-  Widget _buildFeatureItem({
+  Widget _buildFeatureItem(BuildContext context, {
     required IconData icon,
     required String title,
     required String description,
   }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -262,12 +248,12 @@ class AboutView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF2E7D32).withOpacity(0.1),
+              color: colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
-              color: const Color(0xFF2E7D32),
+              color: colorScheme.primary,
               size: 24,
             ),
           ),
@@ -278,19 +264,12 @@ class AboutView extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1C1E),
-                  ),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
                 ),
               ],
             ),
@@ -301,4 +280,3 @@ class AboutView extends StatelessWidget {
   }
 
 }
-

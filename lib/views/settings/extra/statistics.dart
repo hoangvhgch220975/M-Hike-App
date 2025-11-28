@@ -72,23 +72,22 @@ class _StatisticsViewState extends State<StatisticsView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Statistics',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+          style: theme.textTheme.titleLarge?.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
       body: SingleChildScrollView(
@@ -97,14 +96,7 @@ class _StatisticsViewState extends State<StatisticsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Overview Section
-            const Text(
-              'Overview',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1E),
-              ),
-            ),
+            Text('Overview', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -133,7 +125,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                 Expanded(
                   child: _buildStatCard(
                     icon: Icons.schedule,
-                    iconColor: const Color(0xFFFF9800),
+                    iconColor: colorScheme.primary,
                     label: 'Planned',
                     value: '$plannedHikes',
                   ),
@@ -153,25 +145,18 @@ class _StatisticsViewState extends State<StatisticsView> {
             const SizedBox(height: 32),
 
             // Distance Section
-            const Text(
-              'Distance',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1E),
-              ),
-            ),
+            Text('Distance', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _buildDistanceCard(
               icon: Icons.straighten,
-              iconColor: const Color(0xFF8E24AA),
+              iconColor: colorScheme.primary,
               label: 'Total Distance',
               value: '${totalDistance.toStringAsFixed(1)} km',
             ),
             const SizedBox(height: 12),
             _buildDistanceCard(
               icon: Icons.show_chart,
-              iconColor: const Color(0xFFE91E63),
+              iconColor: colorScheme.primary,
               label: 'Average Distance',
               value: '${averageDistance.toStringAsFixed(1)} km',
             ),
@@ -179,28 +164,14 @@ class _StatisticsViewState extends State<StatisticsView> {
             const SizedBox(height: 32),
 
             // Hike Status Chart
-            const Text(
-              'Hike Status',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1E),
-              ),
-            ),
+            Text('Hike Status', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _buildPieChart(),
 
             const SizedBox(height: 32),
 
             // Difficulty Distribution Chart
-            const Text(
-              'Difficulty Distribution',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1E),
-              ),
-            ),
+            Text('Difficulty Distribution', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _buildBarChart(),
           ],
@@ -215,16 +186,17 @@ class _StatisticsViewState extends State<StatisticsView> {
     required String label,
     required String value,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -239,23 +211,9 @@ class _StatisticsViewState extends State<StatisticsView> {
             child: Icon(icon, color: iconColor, size: 32),
           ),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1C1C1E),
-            ),
-          ),
+          Text(value, style: theme.textTheme.headlineMedium?.copyWith(fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-            ),
-          ),
+          Text(label, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
         ],
       ),
     );
@@ -267,16 +225,17 @@ class _StatisticsViewState extends State<StatisticsView> {
     required String label,
     required String value,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -295,22 +254,9 @@ class _StatisticsViewState extends State<StatisticsView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
+                Text(label, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, color: theme.hintColor)),
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
+                Text(value, style: theme.textTheme.headlineMedium?.copyWith(fontSize: 24, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -320,30 +266,25 @@ class _StatisticsViewState extends State<StatisticsView> {
   }
 
   Widget _buildPieChart() {
+    final theme = Theme.of(context);
     // If no hikes, show empty state
     if (totalHikes == 0) {
       return Container(
         height: 250,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 8,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: const Center(
-          child: Text(
-            'No hikes yet',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF6B7280),
-            ),
-          ),
+        child: Center(
+          child: Text('No hikes yet', style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor, fontSize: 16)),
         ),
       );
     }
@@ -352,13 +293,13 @@ class _StatisticsViewState extends State<StatisticsView> {
       height: 250,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -420,31 +361,25 @@ class _StatisticsViewState extends State<StatisticsView> {
   }
 
   Widget _buildBarChart() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     // If no hikes, show empty state
     if (totalHikes == 0) {
       return Container(
         height: 280,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 8,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: const Center(
-          child: Text(
-            'No hikes yet',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-        ),
+        child: Center(child: Text('No hikes yet', style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor, fontSize: 16))),
       );
     }
 
@@ -454,13 +389,13 @@ class _StatisticsViewState extends State<StatisticsView> {
       height: 280,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -475,7 +410,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (group) => Colors.black87,
+                    getTooltipColor: (group) => theme.colorScheme.onSurface,
                     tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     tooltipMargin: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
@@ -495,11 +430,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                       }
                       return BarTooltipItem(
                         '$difficulty\n${rod.toY.toInt()} hikes',
-                        const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
+                        theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 12) ?? const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                       );
                     },
                   ),
@@ -511,25 +442,21 @@ class _StatisticsViewState extends State<StatisticsView> {
                       showTitles: true,
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
-                        const style = TextStyle(
-                          color: Color(0xFF1C1C1E),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        );
+                        final style = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, fontSize: 13) ?? const TextStyle(fontWeight: FontWeight.w600, fontSize: 13);
                         switch (value.toInt()) {
                           case 0:
-                            return const Padding(
-                              padding: EdgeInsets.only(top: 8),
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
                               child: Text('Easy', style: style),
                             );
                           case 1:
-                            return const Padding(
-                              padding: EdgeInsets.only(top: 8),
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
                               child: Text('Moderate', style: style),
                             );
                           case 2:
-                            return const Padding(
-                              padding: EdgeInsets.only(top: 8),
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
                               child: Text('Hard', style: style),
                             );
                           default:
@@ -547,14 +474,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                         if (value == meta.max || value == meta.min) {
                           return const SizedBox();
                         }
-                        return Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        );
+                        return Text(value.toInt().toString(), style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor, fontSize: 11, fontWeight: FontWeight.w500));
                       },
                     ),
                   ),
@@ -570,10 +490,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                   drawVerticalLine: false,
                   horizontalInterval: 1,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: const Color(0xFFF3F4F6),
-                      strokeWidth: 1,
-                    );
+                    return FlLine(color: theme.dividerColor, strokeWidth: 1);
                   },
                 ),
                 borderData: FlBorderData(show: false),
@@ -583,18 +500,14 @@ class _StatisticsViewState extends State<StatisticsView> {
                     barRods: [
                       BarChartRodData(
                         toY: easyHikes > 0 ? easyHikes.toDouble() : 0.1,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                        gradient: LinearGradient(
+                          colors: [colorScheme.primary, colorScheme.primary.withOpacity(0.85)],
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                         ),
                         width: 50,
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: maxValue + 1,
-                          color: const Color(0xFFF3F4F6),
-                        ),
+                        backDrawRodData: BackgroundBarChartRodData(show: true, toY: maxValue + 1, color: theme.dividerColor),
                       ),
                     ],
                     showingTooltipIndicators: [],
@@ -611,11 +524,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                         ),
                         width: 50,
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: maxValue + 1,
-                          color: const Color(0xFFF3F4F6),
-                        ),
+                        backDrawRodData: BackgroundBarChartRodData(show: true, toY: maxValue + 1, color: theme.dividerColor),
                       ),
                     ],
                     showingTooltipIndicators: [],
@@ -632,11 +541,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                         ),
                         width: 50,
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: maxValue + 1,
-                          color: const Color(0xFFF3F4F6),
-                        ),
+                        backDrawRodData: BackgroundBarChartRodData(show: true, toY: maxValue + 1, color: theme.dividerColor),
                       ),
                     ],
                     showingTooltipIndicators: [],
@@ -672,6 +577,7 @@ class _StatisticsViewState extends State<StatisticsView> {
     required Color color,
     required int count,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -679,14 +585,7 @@ class _StatisticsViewState extends State<StatisticsView> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
-      child: Text(
-        '$count',
-        style: TextStyle(
-          color: color,
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text('$count', style: theme.textTheme.bodyMedium?.copyWith(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -695,6 +594,7 @@ class _StatisticsViewState extends State<StatisticsView> {
     required String label,
     required String value,
   }) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
@@ -706,24 +606,10 @@ class _StatisticsViewState extends State<StatisticsView> {
           ),
         ),
         const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF6B7280),
-          ),
-        ),
+        Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
         const SizedBox(width: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1C1C1E),
-          ),
-        ),
+        Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
       ],
     );
   }
 }
-

@@ -82,19 +82,21 @@ class _RemarkableCardState extends State<RemarkableCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return GestureDetector(
       onTap: widget.onTap,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color.fromRGBO(105, 129, 142, 0.15),
+                color: Colors.black.withOpacity(0.06),
                 blurRadius: 24,
-                offset: Offset(0, 8),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -113,8 +115,8 @@ class _RemarkableCardState extends State<RemarkableCard> {
                         'lib/assets/images/imageholder.png',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
-                          color: Colors.grey.shade200,
-                          child: const Icon(Icons.image, size: 48, color: Colors.grey),
+                          color: theme.cardColor,
+                          child: Icon(Icons.image, size: 48, color: theme.iconTheme.color),
                         ),
                       ),
                     ),
@@ -128,13 +130,11 @@ class _RemarkableCardState extends State<RemarkableCard> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _isRemarkable
-                              ? const Color(0xFFFFD700)
-                              : Colors.white.withOpacity(0.9),
+                          color: _isRemarkable ? const Color(0xFFFFD700) : theme.cardColor.withOpacity(0.9),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withOpacity(0.12),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -142,9 +142,7 @@ class _RemarkableCardState extends State<RemarkableCard> {
                         ),
                         child: Icon(
                           _isRemarkable ? Icons.star : Icons.star_border,
-                          color: _isRemarkable
-                              ? Colors.white
-                              : const Color(0xFF6B7280),
+                          color: _isRemarkable ? Colors.white : theme.iconTheme.color,
                           size: 24,
                         ),
                       ),
@@ -165,35 +163,16 @@ class _RemarkableCardState extends State<RemarkableCard> {
                           color: const Color(0xFFFFD700).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(50),
                         ),
-                        child: const Text(
-                          'Remarkable 🌟',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFFFD700),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: const Text('Remarkable 🌟', style: TextStyle(fontSize: 12, color: Color(0xFFFFD700), fontWeight: FontWeight.w600)),
                       ),
                     const SizedBox(height: 8),
-                    Text(
-                      widget.hike.name,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(widget.hike.name, style: theme.textTheme.titleMedium?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text(
-                      widget.hike.location,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
+                    Text(widget.hike.location, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, color: theme.hintColor)),
                     const SizedBox(height: 8),
                     // optional description
                     if (widget.hike.description != null && widget.hike.description!.isNotEmpty)
-                      Text(
-                        widget.hike.description!,
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF6C757D), height: 1.4),
-                      ),
+                      Text(widget.hike.description!, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.4, color: theme.hintColor)),
                   ],
                 ),
               ),

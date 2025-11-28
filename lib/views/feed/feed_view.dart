@@ -1,5 +1,3 @@
-// lib/views/feed/feed_view.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/hike_viewmodel.dart';
@@ -7,7 +5,6 @@ import '../../models/hike.dart';
 import 'empty_feed_view.dart';
 import 'widgets/feed_card.dart';
 import '../search/search_view.dart';
-import '../../db/app_db.dart';
 
 class FeedView extends StatefulWidget {
   const FeedView({super.key});
@@ -19,7 +16,7 @@ class FeedView extends StatefulWidget {
 class _FeedViewState extends State<FeedView> {
   String _selectedFilter = 'All';
 
-  // Pagination fields
+  // Pagination
   final ScrollController _controller = ScrollController();
   List<Hike> _allHikes = [];
   List<Hike> _displayed = [];
@@ -28,16 +25,19 @@ class _FeedViewState extends State<FeedView> {
   bool _initialized = false;
   final int _pageSize = 4;
 
+  // AppBar animation
+  bool _showGreenHeader = false;
+
   @override
   void initState() {
     super.initState();
-    // Load completed hikes when view initializes
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final viewModel = Provider.of<HikeViewModel>(context, listen: false);
-      viewModel.initialize();
-      // Also ensure feed category is loaded directly (helps when pagination doesn't add items)
-      viewModel.loadFeed();
+      final vm = Provider.of<HikeViewModel>(context, listen: false);
+      vm.initialize();
+      vm.loadFeed();
     });
+
     _controller.addListener(_onScroll);
   }
 
@@ -49,8 +49,20 @@ class _FeedViewState extends State<FeedView> {
   }
 
   void _onScroll() {
-    if (!_controller.hasClients || _isLoadingMore || !_hasMore) return;
-    final threshold = 120.0; // px from bottom to trigger
+    if (!_controller.hasClients) return;
+
+    final offset = _controller.offset;
+    final shouldShowGreen = offset > 0;
+
+    if (shouldShowGreen != _showGreenHeader) {
+      setState(() {
+        _showGreenHeader = shouldShowGreen;
+      });
+    }
+
+    if (_isLoadingMore || !_hasMore) return;
+
+    final threshold = 120;
     if (_controller.position.maxScrollExtent - _controller.position.pixels <= threshold) {
       _loadMore();
     }
@@ -60,6 +72,7 @@ class _FeedViewState extends State<FeedView> {
     _allHikes = List.of(source);
     final first = _allHikes.length > _pageSize ? _pageSize : _allHikes.length;
     _displayed = _allHikes.take(first).toList();
+
     _hasMore = _displayed.length < _allHikes.length;
     _isLoadingMore = false;
     _initialized = true;
@@ -67,17 +80,18 @@ class _FeedViewState extends State<FeedView> {
 
   Future<void> _loadMore() async {
     if (_isLoadingMore || !_hasMore) return;
+
     setState(() {
       _isLoadingMore = true;
     });
 
-    // Simulate searching/fetching for up to 1.2 seconds
     await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
 
-    final currentlyShown = _displayed.length;
-    final remaining = _allHikes.length - currentlyShown;
+    final shown = _displayed.length;
+    final remaining = _allHikes.length - shown;
+
     if (remaining <= 0) {
       setState(() {
         _hasMore = false;
@@ -87,7 +101,7 @@ class _FeedViewState extends State<FeedView> {
     }
 
     final nextCount = remaining > _pageSize ? _pageSize : remaining;
-    final nextItems = _allHikes.skip(currentlyShown).take(nextCount).toList();
+    final nextItems = _allHikes.skip(shown).take(nextCount).toList();
 
     setState(() {
       _displayed.addAll(nextItems);
@@ -98,84 +112,111 @@ class _FeedViewState extends State<FeedView> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _FeedColors();
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Consumer<HikeViewModel>(
-      builder: (context, viewModel, child) {
-        // Get filtered hikes based on selected filter
-        List<Hike> filtered = _getFilteredHikes(viewModel);
+      builder: (context, vm, child) {
+        List<Hike> filtered = _getFilteredHikes(vm);
 
-        // If filtered list changed (or first init), reset pagination
         if (!_initialized || filtered.length != _allHikes.length) {
           _resetPagination(filtered);
         }
 
-        // Show empty view if no completed hikes exist (and not loading)
-        if (filtered.isEmpty && !viewModel.isLoading) {
+        if (filtered.isEmpty && !vm.isLoading) {
           return const EmptyFeedView();
         }
 
         return Scaffold(
-          backgroundColor: colors.lightGrey,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: _showGreenHeader
+                ? colorScheme.primary.withOpacity(0.12)
+                : Colors.transparent,
+            elevation: _showGreenHeader ? 2 : 0,
+            centerTitle: true,
+            automaticallyImplyLeading: false,
+            title: Text(
+              'Hike Feed',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            leading: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Image.asset(
+                'lib/assets/images/hike_logo.png',
+                width: 28,
+                height: 28,
+              ),
+            ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchView()),
+                  );
+                },
+                icon: Icon(Icons.search, size: 28, color: theme.iconTheme.color),
+              )
+            ],
+          ),
           body: SafeArea(
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: Column(
                   children: [
-                    _buildHeader(colors, viewModel),
-                    const SizedBox(height: 4),
-                    _buildFilters(colors, viewModel),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 14), // more space from AppBar
+                    _buildFilters(theme),
+                    const SizedBox(height: 16), // more space to content below
                     Expanded(
-                      child: _displayed.isEmpty && viewModel.isLoading
+                      child: _displayed.isEmpty && vm.isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : RefreshIndicator(
-                              color: const Color(0xFF2E7D32),
-                              onRefresh: () async {
-                                await viewModel.loadFeed();
-                                await viewModel.loadRemarkable();
-                              },
-                              child: ListView.builder(
-                                controller: _controller,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                itemCount: _displayed.length + (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                if (index == _displayed.length) {
-                                  // footer
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 24),
-                                    child: Center(
-                                      child: _isLoadingMore
-                                          ? const SizedBox(
-                                              height: 32,
-                                              width: 32,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 3,
-                                                color: Color(0xFF225749),
-                                              ),
-                                            )
-                                          : const SizedBox.shrink(),
-                                    ),
-                                  );
-                                }
+                        color: colorScheme.primary,
+                        onRefresh: () async {
+                          await vm.loadFeed();
+                          await vm.loadRemarkable();
+                        },
+                        child: ListView.builder(
+                          controller: _controller,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: _displayed.length + (_hasMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == _displayed.length) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: _isLoadingMore
+                                      ? const SizedBox(
+                                    height: 32,
+                                    width: 32,
+                                    child: CircularProgressIndicator(strokeWidth: 3),
+                                  )
+                                      : const SizedBox.shrink(),
+                                ),
+                              );
+                            }
 
-                                final hike = _displayed[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 24),
-                                  child: FeedCard(
-                                    hike: hike,
-                                    onRemarkableChanged: () {
-                                      // Refresh the feed data
-                                      final vm = Provider.of<HikeViewModel>(context, listen: false);
-                                      vm.loadFeed();
-                                      vm.loadRemarkable();
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                            final hike = _displayed[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              child: FeedCard(
+                                hike: hike,
+                                onRemarkableChanged: () {
+                                  final vm = Provider.of<HikeViewModel>(
+                                      context,
+                                      listen: false);
+                                  vm.loadFeed();
+                                  vm.loadRemarkable();
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -187,138 +228,71 @@ class _FeedViewState extends State<FeedView> {
     );
   }
 
-  List<Hike> _getFilteredHikes(HikeViewModel viewModel) {
+  List<Hike> _getFilteredHikes(HikeViewModel vm) {
     switch (_selectedFilter) {
       case 'Remarkable 🌟':
-        return viewModel.remarkable;
+        return vm.remarkable;
       case 'Recent':
-        return viewModel.feed.take(10).toList();
+        return vm.feed.take(10).toList();
       case 'Easy':
-        return viewModel.feed.where((h) => h.difficulty == 'Easy').toList();
+        return vm.feed.where((h) => h.difficulty == 'Easy').toList();
       case 'Moderate':
-        return viewModel.feed.where((h) => h.difficulty == 'Moderate').toList();
+        return vm.feed.where((h) => h.difficulty == 'Moderate').toList();
       case 'Hard':
-        return viewModel.feed.where((h) => h.difficulty == 'Hard').toList();
+        return vm.feed.where((h) => h.difficulty == 'Hard').toList();
       default:
-        return viewModel.feed;
+        return vm.feed;
     }
   }
 
-  Widget _buildEmptyState(_FeedColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.filter_list_off, size: 64, color: colors.darkGrey),
-          const SizedBox(height: 16),
-          Text(
-            'No hikes match this filter',
-            style: TextStyle(
-              fontSize: 16,
-              color: colors.darkGrey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // HEADER
-  Widget _buildHeader(_FeedColors colors, HikeViewModel viewModel) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: colors.lightGrey.withOpacity(0.9),
-      child: Row(
-        children: [
-          Image.asset(
-            'lib/assets/images/hike_logo.png',
-            width: 32,
-            height: 32,
-            fit: BoxFit.contain,
-          ),
-          const Spacer(),
-          const Text(
-            "Hike Feed",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            onPressed: () {
-              // Navigate to search view
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const SearchView()),
-              );
-            },
-            icon: const Icon(Icons.search, size: 28, color: Color(0xFF1F2937)),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () async {
-              // Debug: show DB counts and feed length
-              try {
-                final total = await AppDatabase.instance.getHikesCount();
-                final completed = viewModel.feed.length;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('DB total: $total  |  Feed length: $completed')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error reading DB counts: $e')),
-                );
-              }
-            },
-            icon: const Icon(Icons.info_outline, size: 24, color: Color(0xFF6B7280)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // FILTER TAGS
-  Widget _buildFilters(_FeedColors colors, HikeViewModel viewModel) {
+  Widget _buildFilters(ThemeData theme) {
     return SizedBox(
-      height: 40,
+      height: 56, // taller filter bar for more vertical breathing room
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(left: 16),
+        padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
         children: [
-          _filter("All", _selectedFilter == 'All', colors),
-          _filter("Remarkable 🌟", _selectedFilter == 'Remarkable 🌟', colors),
-          _filter("Recent", _selectedFilter == 'Recent', colors),
-          _filter("Easy", _selectedFilter == 'Easy', colors),
-          _filter("Moderate", _selectedFilter == 'Moderate', colors),
-          _filter("Hard", _selectedFilter == 'Hard', colors),
+          _filter("All", theme),
+          _filter("Remarkable 🌟", theme),
+          _filter("Recent", theme),
+          _filter("Easy", theme),
+          _filter("Moderate", theme),
+          _filter("Hard", theme),
         ],
       ),
     );
   }
 
-  Widget _filter(String label, bool active, _FeedColors c) {
+  Widget _filter(String label, ThemeData theme) {
+    final active = _selectedFilter == label;
+
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedFilter = label;
-          _initialized = false; // reset pagination when filter changes
+          _initialized = false;
         });
       },
       child: Container(
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: active ? c.forestGreen : Colors.white,
+          color: active ? theme.colorScheme.primary : theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: active ? null : [const BoxShadow(color: Colors.black12, blurRadius: 4)],
+          boxShadow: active
+              ? null
+              : [
+            BoxShadow(
+              color: theme.dividerColor.withOpacity(0.6),
+              blurRadius: 4,
+            )
+          ],
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              color: active ? Colors.white : c.darkText,
+              color: active ? Colors.white : theme.textTheme.bodyMedium?.color,
               fontWeight: FontWeight.w500,
               fontSize: 13,
             ),
@@ -327,15 +301,4 @@ class _FeedViewState extends State<FeedView> {
       ),
     );
   }
-}
-
-
-// COLOR PALETTE
-class _FeedColors {
-  final Color forestGreen = const Color(0xFF225749);
-  final Color skyBlue = const Color(0xFF89CFF0);
-  final Color earthBrown = const Color(0xFFA1887F);
-  final Color lightGrey = const Color(0xFFF5F5F5);
-  final Color darkGrey = const Color(0xFF6B7280);
-  final Color darkText = const Color(0xFF1F2937);
 }

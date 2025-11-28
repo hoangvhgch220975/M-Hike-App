@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../db/app_db.dart';
 import '../../models/hike.dart';
-import '../feed/feed_view.dart';
 
 class SearchView extends StatefulWidget {
   const SearchView({super.key});
@@ -135,10 +134,13 @@ class _SearchViewState extends State<SearchView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // light-grey
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0,
         automaticallyImplyLeading: true,
         title: SizedBox(
@@ -149,19 +151,19 @@ class _SearchViewState extends State<SearchView> {
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.white,
+              fillColor: theme.cardColor,
               contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 40),
               hintText: 'Search for hikes...',
-              hintStyle: const TextStyle(color: Color(0xFFA0AEC0), fontSize: 16),
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, color: theme.hintColor),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(40),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+                borderSide: BorderSide(color: colorScheme.primary, width: 1),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(40),
-                borderSide: const BorderSide(color: Color(0xFF225749), width: 2),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
               ),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
+              prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
               suffixIcon: _query.isNotEmpty
                   ? GestureDetector(
                       onTap: _clear,
@@ -169,8 +171,8 @@ class _SearchViewState extends State<SearchView> {
                         margin: const EdgeInsets.only(right: 8),
                         height: 28,
                         width: 28,
-                        decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, size: 16, color: Colors.grey),
+                        decoration: BoxDecoration(color: theme.cardColor, shape: BoxShape.circle),
+                        child: Icon(Icons.close, size: 16, color: theme.iconTheme.color),
                       ),
                     )
                   : null,
@@ -181,17 +183,10 @@ class _SearchViewState extends State<SearchView> {
         actions: [
           TextButton(
             onPressed: () {
-              // Prefer popping back to previous screen (likely Feed). If not possible, replace with FeedView.
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FeedView()),
-                );
-              }
+              // Simply pop back to previous screen with navbar
+              Navigator.pop(context);
             },
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF225749), fontWeight: FontWeight.w600)),
+            child: Text('Cancel', style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600)),
           )
         ],
       ),
@@ -259,6 +254,7 @@ class _SearchViewState extends State<SearchView> {
     final suggestions = ['Lakeview', 'Emerald', 'Lakeside', 'Skyline'];
 
     // Build a combined list: recent searches first (if any), then static suggestions
+    final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -266,10 +262,10 @@ class _SearchViewState extends State<SearchView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Recent', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text('Recent', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               TextButton(
                 onPressed: _clearRecent,
-                child: const Text('Clear', style: TextStyle(color: Colors.grey)),
+                child: Text('Clear', style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
               )
             ],
           ),
@@ -278,12 +274,12 @@ class _SearchViewState extends State<SearchView> {
             return Column(
               children: [
                 ListTile(
-                  tileColor: Colors.white,
+                  tileColor: theme.cardColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  title: Text(s, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  leading: const Icon(Icons.history, color: Color(0xFF6B7280)),
+                  title: Text(s, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  leading: Icon(Icons.history, color: theme.iconTheme.color),
                   trailing: IconButton(
-                    icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                    icon: Icon(Icons.close, size: 20, color: theme.iconTheme.color),
                     onPressed: () => _removeRecent(s),
                   ),
                   onTap: () {
@@ -307,10 +303,10 @@ class _SearchViewState extends State<SearchView> {
           return Column(
             children: [
               ListTile(
-                tileColor: Colors.white,
+                tileColor: theme.cardColor,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                title: Text(s, style: const TextStyle(fontWeight: FontWeight.w600)),
-                leading: const Icon(Icons.trending_up, color: Color(0xFF6B7280)),
+                title: Text(s, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                leading: Icon(Icons.trending_up, color: theme.iconTheme.color),
                 onTap: () {
                   _controller.text = s;
                   _saveSearch(s);
@@ -346,13 +342,14 @@ class HikeItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 4))],
+          color: theme.cardColor,
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: const Offset(0, 4))],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -373,40 +370,21 @@ class HikeItem extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Color(0xFF1F2937),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   Text(
                     park,
-                    style: const TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 13,
-                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Text(
-                        distance,
-                        style: const TextStyle(
-                          color: Color(0xFF6B7280),
-                          fontSize: 13,
-                        ),
-                      ),
+                      Text(distance, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13)),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6),
                         child: Text("•", style: TextStyle(color: Color(0xFFCCCCCC))),
                       ),
-                      Text(
-                        difficulty,
-                        style: const TextStyle(
-                          color: Color(0xFF6B7280),
-                          fontSize: 13,
-                        ),
-                      ),
+                      Text(difficulty, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13)),
                     ],
                   )
                 ],

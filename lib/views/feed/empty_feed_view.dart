@@ -1,17 +1,43 @@
-
 // lib/views/feed/empty_feed_view.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/hike_viewmodel.dart';
+import '../hikes/hike_form_view.dart';
 
-class EmptyFeedView extends StatelessWidget {
+class EmptyFeedView extends StatefulWidget {
   const EmptyFeedView({super.key});
 
   @override
+  State<EmptyFeedView> createState() => _EmptyFeedViewState();
+}
+
+class _EmptyFeedViewState extends State<EmptyFeedView> {
+  Future<void> _refreshData() async {
+    final viewModel = Provider.of<HikeViewModel>(context, listen: false);
+    await viewModel.loadFeed();
+    await viewModel.loadRemarkable();
+  }
+
+  Future<void> _openHikeForm() async {
+    final result = await Navigator.of(context).push<bool?>(
+      MaterialPageRoute(builder: (ctx) => const HikeFormView()),
+    );
+
+    if (result == true) {
+      final viewModel = Provider.of<HikeViewModel>(context, listen: false);
+      await viewModel.loadFeed();
+      await viewModel.loadRemarkable();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final colors = _FeedColors();
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colors.lightGrey,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: Container(
@@ -19,81 +45,80 @@ class EmptyFeedView extends StatelessWidget {
             child: Column(
               children: [
                 // HEADER - Same as feed_view
-                _buildHeader(colors),
+                _buildHeader(context),
 
                 const SizedBox(height: 40),
 
-                // EMPTY STATE CONTENT
+                // EMPTY STATE CONTENT with RefreshIndicator
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // ILLUSTRATION IMAGE
-                        SizedBox(
-                          height: 240,
-                          width: 240,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.network(
-                              "https://lh3.googleusercontent.com/aida-public/AB6AXuC8Cpp1dGMKyQG12tmVi-BWG_KS6jDfv_EI4aFnDW8hpeJxLrR5JAur5LW0zfGzgCPOrvJsljL9j42_PShKrMpGq42g94KqwA2DUms5WUJmeqpF-mvLwXdFTdWY48IHoawxszAkj4jzEQOeHng8-jIMlta-0TMol11NhAad4GUMcCtanBe75s8LUKMdQDsHPSiFNIBapa_MKc_o03eiXXQW1LnWbTaVJlOpqaI4dh-ect3leEOYzmOKR5RRz4RCTYTDSl-xu4T0YBH-",
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                  child: RefreshIndicator(
+                    color: colorScheme.primary,
+                    onRefresh: _refreshData,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height - 200,
                         ),
-
-                        const SizedBox(height: 24),
-
-                        // TITLE + DESCRIPTION
-                        Text(
-                          "Your Adventure Awaits",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: colors.darkText,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Looks like you haven't completed a hike yet. Every great journey starts with a single step.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: colors.darkGrey,
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // BUTTON
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              // Navigate to create hike or plan view
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colors.forestGreen,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(999),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // ILLUSTRATION IMAGE
+                              SizedBox(
+                                height: 240,
+                                width: 240,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.network(
+                                    "https://lh3.googleusercontent.com/aida-public/AB6AXuC8Cpp1dGMKyQG12tmVi-BWG_KS6jDfv_EI4aFnDW8hpeJxLrR5JAur5LW0zfGzgCPOrvJsljL9j42_PShKrMpGq42g94KqwA2DUms5WUJmeqpF-mvLwXdFTdWY48IHoawxszAkj4jzEQOeHng8-jIMlta-0TMol11NhAad4GUMcCtanBe75s8LUKMdQDsHPSiFNIBapa_MKc_o03eiXXQW1LnWbTaVJlOpqaI4dh-ect3leEOYzmOKR5RRz4RCTYTDSl-xu4T0YBH-",
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                               ),
-                              elevation: 6,
-                              shadowColor: colors.forestGreen.withOpacity(0.3),
-                            ),
-                            child: const Text(
-                              "Start Your First Hike",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.white,
+
+                              const SizedBox(height: 24),
+
+                              // TITLE + DESCRIPTION
+                              Text(
+                                "Your Adventure Awaits",
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Looks like you haven't completed a hike yet. Every great journey starts with a single step.",
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14),
+                              ),
+
+                              const SizedBox(height: 32),
+
+                              // BUTTON
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: _openHikeForm,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    elevation: 6,
+                                    shadowColor: colorScheme.primary.withOpacity(0.3),
+                                  ),
+                                  child: Text(
+                                    "Start Your First Hike",
+                                    style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, fontSize: 16, color: colorScheme.onPrimary),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -106,10 +131,11 @@ class EmptyFeedView extends StatelessWidget {
   }
 
   // HEADER - Same as feed_view
-  Widget _buildHeader(_FeedColors colors) {
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
-      color: colors.lightGrey.withOpacity(0.9),
+      color: theme.cardColor.withOpacity(0.9),
       child: Row(
         children: [
           Image.asset(
@@ -119,18 +145,11 @@ class EmptyFeedView extends StatelessWidget {
             fit: BoxFit.contain,
           ),
           const Spacer(),
-          const Text(
-            "Hike Feed",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
+          Text('Hike Feed', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.search, size: 28, color: Color(0xFF1F2937)),
+            icon: Icon(Icons.search, size: 28, color: theme.iconTheme.color),
           ),
         ],
       ),
@@ -147,4 +166,3 @@ class _FeedColors {
   final Color darkGrey = const Color(0xFF6B7280);
   final Color darkText = const Color(0xFF1F2937);
 }
-

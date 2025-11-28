@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'extra/about.dart';
 import 'extra/statistics.dart';
 import '../../services/permission_service.dart';
+import '../../viewmodels/theme_viewmodel.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -11,7 +13,6 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  bool isDarkMode = false;
   bool notificationsEnabled = false;
   bool locationEnabled = false;
   bool cameraEnabled = false;
@@ -174,22 +175,28 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final themeModel = context.watch<ThemeViewModel>();
+
+    // Use the global app theme (MaterialApp's theme/darkTheme) so toggling
+    // ThemeViewModel updates the whole app.
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // background-light
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color ?? Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Settings',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: theme.textTheme.titleLarge?.color ?? Colors.black,
           ),
         ),
       ),
@@ -204,18 +211,18 @@ class _SettingsViewState extends State<SettingsView> {
               child: Column(
                 children: [
                   _buildToggleItem(
+                    context,
                     icon: Icons.light_mode,
                     iconColor: const Color(0xFF2E7D32),
                     title: 'Dark/Light Mode',
-                    value: isDarkMode,
+                    value: themeModel.isDarkMode,
                     onChanged: (val) {
-                      setState(() {
-                        isDarkMode = val;
-                      });
+                      context.read<ThemeViewModel>().setDarkMode(val);
                     },
                   ),
                   const Divider(height: 1),
                   _buildToggleItem(
+                    context,
                     icon: Icons.notifications,
                     iconColor: const Color(0xFF2E7D32),
                     title: 'Notification Settings',
@@ -224,6 +231,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   const Divider(height: 1),
                   _buildToggleItem(
+                    context,
                     icon: Icons.location_on,
                     iconColor: const Color(0xFF0288D1),
                     title: 'Location Permissions',
@@ -232,6 +240,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   const Divider(height: 1),
                   _buildToggleItem(
+                    context,
                     icon: Icons.photo_camera,
                     iconColor: const Color(0xFF0288D1),
                     title: 'Camera Permissions',
@@ -240,6 +249,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   const Divider(height: 1),
                   _buildToggleItem(
+                    context,
                     icon: Icons.photo_library,
                     iconColor: const Color(0xFF0288D1),
                     title: 'Gallery Permissions',
@@ -248,6 +258,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   const SizedBox(height: 16),
                   _buildNavigationItem(
+                    context,
                     icon: Icons.bar_chart,
                     iconColor: const Color(0xFF2E7D32),
                     title: 'Statistics',
@@ -260,6 +271,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   const Divider(height: 1),
                   _buildNavigationItem(
+                    context,
                     icon: Icons.info,
                     iconColor: const Color(0xFF5D4037),
                     title: 'About',
@@ -276,15 +288,17 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildToggleItem({
+  Widget _buildToggleItem(
+    BuildContext ctx, {
     required IconData icon,
     required Color iconColor,
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final theme = Theme.of(ctx);
     return Container(
-      color: Colors.white,
+      color: theme.cardColor,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
@@ -300,10 +314,10 @@ class _SettingsViewState extends State<SettingsView> {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: theme.textTheme.bodyMedium?.color ?? Colors.black87,
               ),
             ),
           ),
@@ -317,16 +331,18 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildNavigationItem({
+  Widget _buildNavigationItem(
+    BuildContext ctx, {
     required IconData icon,
     required Color iconColor,
     required String title,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(ctx);
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        color: Colors.white,
+        color: theme.cardColor,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
@@ -342,10 +358,10 @@ class _SettingsViewState extends State<SettingsView> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color: theme.textTheme.bodyMedium?.color ?? Colors.black87,
                 ),
               ),
             ),
