@@ -8,11 +8,13 @@ import '../../shared/notification_helper.dart';
 class FeedCard extends StatefulWidget {
   final Hike hike;
   final VoidCallback? onRemarkableChanged;
+  final VoidCallback? onTap;
 
   const FeedCard({
     super.key,
     required this.hike,
     this.onRemarkableChanged,
+    this.onTap,
   });
 
   @override
@@ -87,100 +89,103 @@ class _FeedCardState extends State<FeedCard> {
     // Generate tags based on hike properties
     final tags = _generateTags();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // IMAGE - Show default hike image with remarkable button
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.asset(
-                    'lib/assets/images/imageholder.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              // Remarkable button overlay
-              Positioned(
-                top: 12,
-                right: 12,
-                child: GestureDetector(
-                  onTap: _toggleRemarkable,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _isRemarkable
-                          ? const Color(0xFFFFD700)
-                          : Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      _isRemarkable ? Icons.star : Icons.star_border,
-                      color: _isRemarkable
-                          ? Colors.white
-                          : const Color(0xFF6B7280),
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // CONTENT
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // IMAGE - Show default hike image with remarkable button
+            Stack(
               children: [
-                Text(
-                  widget.hike.name,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.asset(
+                      'lib/assets/images/imageholder.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-
-                _iconText(Icons.location_on, widget.hike.location),
-                const SizedBox(height: 4),
-                _iconText(Icons.calendar_today, widget.hike.date),
-                const SizedBox(height: 4),
-                _iconText(Icons.straighten, '${widget.hike.length.toStringAsFixed(1)} km'),
-
-                const SizedBox(height: 12),
-
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: tags.map((t) => _tagChip(t)).toList(),
+                // Remarkable button overlay
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: _toggleRemarkable,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _isRemarkable
+                            ? const Color(0xFFFFD700)
+                            : Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _isRemarkable ? Icons.star : Icons.star_border,
+                        color: _isRemarkable
+                            ? Colors.white
+                            : const Color(0xFF6B7280),
+                        size: 24,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+
+            // CONTENT
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.hike.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  _iconText(Icons.location_on, widget.hike.location),
+                  const SizedBox(height: 4),
+                  _iconText(Icons.calendar_today, widget.hike.date),
+                  const SizedBox(height: 4),
+                  _iconText(Icons.straighten, '${widget.hike.length.toStringAsFixed(1)} km'),
+
+                  const SizedBox(height: 12),
+
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: tags.map((t) => _tagChip(t)).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -282,4 +287,3 @@ class _FeedColors {
   final Color darkGrey = const Color(0xFF6B7280);
   final Color darkText = const Color(0xFF1F2937);
 }
-

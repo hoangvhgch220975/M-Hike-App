@@ -5,6 +5,7 @@ import '../../models/hike.dart';
 import '../../viewmodels/hike_viewmodel.dart';
 import 'empty_remarkable_view.dart';
 import 'widgets/remarkable_card.dart';
+import '../hikes/hike_detail_view.dart';
 
 class RemarkableView extends StatefulWidget {
   const RemarkableView({super.key});
@@ -196,8 +197,31 @@ class _RemarkableViewState extends State<RemarkableView> {
             final hike = _displayed[index];
             return RemarkableCard(
               hike: hike,
-              onTap: () {
-                // TODO: navigate to hike detail when implemented
+              onTap: () async {
+                if (hike.id == null) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Cannot open this hike (missing id)')),
+                    );
+                  }
+                  return;
+                }
+
+                final result = await Navigator.of(context).push<bool?>(
+                  MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
+                );
+
+                if (result == true) {
+                  // Reload the remarkable hikes list
+                  await _loadAllRemarkable();
+                  // Refresh the feed as well
+                  final vm = Provider.of<HikeViewModel>(context, listen: false);
+                  vm.loadFeed();
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
+                  }
+                }
               },
               onRemarkableChanged: () {
                 // Reload the remarkable hikes list

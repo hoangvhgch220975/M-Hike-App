@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../db/app_db.dart';
 import '../../models/hike.dart';
+import '../hikes/hike_detail_view.dart';
 
 class SearchView extends StatefulWidget {
   const SearchView({super.key});
@@ -123,13 +124,27 @@ class _SearchViewState extends State<SearchView> {
     });
   }
 
-  void _onResultTap(Hike hike) {
-    // Save the search term and show a short placeholder action.
+  void _onResultTap(Hike hike) async {
+    // Navigate to the hike detail page. The detail view may return `true` to
+    // indicate the item was deleted/changed, in which case we refresh results.
+    if (hike.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot open hike (missing id)')));
+      return;
+    }
+
     _saveSearch(hike.name);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Open hike detail (not implemented)')),
+
+    final result = await Navigator.of(context).push<bool?>(
+      MaterialPageRoute(builder: (_) => HikeDetailView(hikeId: hike.id!)),
     );
-    // TODO: navigate to hike detail page when implemented
+
+    // If the detail view indicates a change (e.g., deletion), refresh current results
+    if (result == true) {
+      if (_query.isNotEmpty) {
+        _onChanged(_query);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
+    }
   }
 
   @override

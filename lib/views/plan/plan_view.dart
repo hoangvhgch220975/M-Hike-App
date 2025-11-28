@@ -7,6 +7,7 @@ import '../../models/hike.dart';
 import 'empty_plan_view.dart';
 import 'widgets/plan_card.dart';
 import '../hikes/hike_form_view.dart';
+import '../hikes/hike_detail_view.dart';
 
 class PlanView extends StatefulWidget {
   const PlanView({super.key});
@@ -148,12 +149,29 @@ class _PlanViewState extends State<PlanView> {
                         );
                       }
                     },
-                    // Single tap: open hike detail (placeholder for now)
-                    onTap: () {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Open hike details for "${hike.name}" (not implemented)')),
-                        );
+                    // Single tap: open hike detail
+                    onTap: () async {
+                      if (hike.id == null) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Cannot open hike "${hike.name}" (missing id)')),
+                          );
+                        }
+                        return;
+                      }
+
+                      final result = await Navigator.of(context).push<bool?>(
+                        MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
+                      );
+
+                      if (result == true) {
+                        // Refresh plan list after a change (deleted/updated)
+                        await viewModel.loadPlan();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Hike updated')),
+                          );
+                        }
                       }
                     },
                     // Long-press -> options: Edit / Delete

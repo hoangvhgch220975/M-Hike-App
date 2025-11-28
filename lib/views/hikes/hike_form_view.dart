@@ -156,7 +156,7 @@ class _HikeFormViewState extends State<HikeFormView> {
     return Column(
       children: [
         Text(
-          "Add Hike",
+          "M - Hike",
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,

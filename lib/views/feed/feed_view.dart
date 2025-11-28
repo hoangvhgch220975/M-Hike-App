@@ -5,6 +5,7 @@ import '../../models/hike.dart';
 import 'empty_feed_view.dart';
 import 'widgets/feed_card.dart';
 import '../search/search_view.dart';
+import '../hikes/hike_detail_view.dart';
 
 class FeedView extends StatefulWidget {
   const FeedView({super.key});
@@ -211,6 +212,30 @@ class _FeedViewState extends State<FeedView> {
                                       listen: false);
                                   vm.loadFeed();
                                   vm.loadRemarkable();
+                                },
+                                onTap: () async {
+                                  if (hike.id == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Cannot open this hike (missing id)')),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  final result = await Navigator.of(context).push<bool?>(
+                                    MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
+                                  );
+
+                                  if (result == true) {
+                                    // refresh lists
+                                    final vm = Provider.of<HikeViewModel>(context, listen: false);
+                                    vm.loadFeed();
+                                    vm.loadRemarkable();
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
+                                    }
+                                  }
                                 },
                               ),
                             );

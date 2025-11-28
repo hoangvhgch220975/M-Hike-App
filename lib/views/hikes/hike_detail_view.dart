@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/hike.dart';
+import '../../db/app_db.dart';
 import '../../viewmodels/hike_viewmodel.dart';
 import 'hike_form_view.dart';
 
@@ -25,22 +26,36 @@ class _HikeDetailViewState extends State<HikeDetailView> {
 
   Future<void> _loadHike() async {
     setState(() => _isLoading = true);
-    final vm = Provider.of<HikeViewModel>(context, listen: false);
-    final h = await vm.getHikeById(widget.hikeId);
+
+    // Read the hike directly from the database to ensure fields like
+    // isComplete/isRemarkable are authoritative and up-to-date.
+    Hike? h;
+    try {
+      h = await AppDatabase.instance.getHikeById(widget.hikeId);
+    } catch (e) {
+      h = null;
+    }
+
+    // Load observations for this hike from DB
+    List observations = [];
+    try {
+      observations = await AppDatabase.instance.getObservationsByHike(widget.hikeId);
+    } catch (e) {
+      observations = [];
+    }
+
+    if (!mounted) return;
     setState(() {
+      if (h != null) {
+        h.observations = List.from(observations);
+      }
       _hike = h;
       _isLoading = false;
     });
   }
 
   Future<void> _markComplete() async {
-    if (_hike == null || _hike!.id == null) return;
-    final vm = Provider.of<HikeViewModel>(context, listen: false);
-    await vm.markHikeAsCompleted(_hike!.id!);
-    await _loadHike();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hike marked as completed')));
-    }
+    // Removed: status is display-only in this view; no action performed.
   }
 
   Future<void> _deleteHike() async {
@@ -119,6 +134,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                         SliverAppBar(
                           pinned: true,
                           expandedHeight: 300,
+                          automaticallyImplyLeading: false,
                           backgroundColor: cs.background,
                           flexibleSpace: FlexibleSpaceBar(
                             background: Stack(
@@ -167,6 +183,26 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Status tag: Completed or Planned
+                                if (_hike!.isComplete)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: cs.primary.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text('Completed', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w700, fontSize: 12)),
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).cardColor.withOpacity(0.9),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text('Planned', style: TextStyle(color: Theme.of(context).hintColor, fontWeight: FontWeight.w700, fontSize: 12)),
+                                  ),
+                                const SizedBox(height: 12),
                                 Text(
                                   _hike!.name,
                                   style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: cs.onBackground),
@@ -208,7 +244,8 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                                   children: [
                                     _pill(primary, Icons.check_circle, 'Complete', active: _hike!.isComplete),
                                     const SizedBox(width: 12),
-                                    _pill(cs.secondary, Icons.star, 'Remarkable', active: _hike!.isRemarkable),
+                                    // Use a consistent yellow for Remarkable
+                                    _pill(const Color(0xFFFFD700), Icons.star, 'Remarkable', active: _hike!.isRemarkable),
                                   ],
                                 ),
 
@@ -234,33 +271,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                       ],
                     ),
 
-                    // Bottom area: show mark complete button only when it's a planned hike
-                    if (!_hike!.isComplete)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          color: cs.surface.withOpacity(0.98),
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _markComplete,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: cs.primary,
-                                    foregroundColor: cs.onPrimary,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  child: const Text('Mark as complete', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
+                    // Removed bottom action area — detail view is read-only now.
                   ],
                 )),
     );
@@ -270,7 +281,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
       {required String date, required String length, required String difficulty, required String parking}) {
     Widget tile(IconData icon, String label, String value) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
@@ -284,15 +295,19 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: primary),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
-                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              ],
-            )
+            Icon(icon, color: primary, size: 18),
+            const SizedBox(width: 8),
+            // Make text wrap/ellipsis safely to prevent overflow
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+                  const SizedBox(height: 4),
+                  Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
           ],
         ),
       );
@@ -303,6 +318,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
       shrinkWrap: true,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
+      childAspectRatio: 2.0,
       physics: const NeverScrollableScrollPhysics(),
       children: [
         tile(Icons.calendar_month, "Date", date),
@@ -314,22 +330,46 @@ class _HikeDetailViewState extends State<HikeDetailView> {
   }
 
   Widget _pill(Color color, IconData icon, String label, {bool active = false}) {
+    final bool isStar = icon == Icons.star || icon == Icons.star_border;
+
+    // Stronger amber for Remarkable so it looks clearly yellow on light backgrounds
+    const Color amberMain = Color(0xFFFFC107); // amber 500
+    const Color amberBgActive = Color(0xFFFFF8E1); // amber 50
+    const Color amberBgInactive = Color(0xFFFFF9E6);
+
+    if (isStar) {
+      final Color textColor = amberMain;
+      final Color bgColor = active ? amberBgActive : amberBgInactive;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(40)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.star, size: 16, color: textColor),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    // Non-star pills: show outlined variant when inactive, colored when active
+    IconData displayIcon = icon;
+    if (!active && icon == Icons.check_circle) displayIcon = Icons.check_circle_outline;
+
+    final Color textColor = active ? color : Theme.of(context).hintColor;
+    final Color bgColor = active ? color.withOpacity(0.12) : Theme.of(context).cardColor.withOpacity(0.06);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: active ? color.withOpacity(0.15) : color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(50),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(40)),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ))
+          Icon(displayIcon, size: 16, color: textColor),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       ),
     );
