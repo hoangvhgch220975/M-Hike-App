@@ -141,20 +141,25 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                               children: [
                                 // Placeholder hero area - use a subtle gradient
                                 Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          cs.surface,
-                                          cs.background.withOpacity(0.9),
-                                        ],
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      // Banner image (uses the placeholder asset when no banner image provided)
+                                      Image.asset('lib/assets/images/imageholder.png', fit: BoxFit.cover),
+                                      // Gradient overlay to keep legibility on top of the image
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              cs.surface.withOpacity(0.28),
+                                              cs.background.withOpacity(0.88),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    child: Center(
-                                      child: Icon(Icons.park, size: 84, color: cs.primary),
-                                    ),
+                                    ],
                                   ),
                                 ),
                                 Positioned(
@@ -338,17 +343,23 @@ class _HikeDetailViewState extends State<HikeDetailView> {
     const Color amberBgInactive = Color(0xFFFFF9E6);
 
     if (isStar) {
-      final Color textColor = amberMain;
-      final Color bgColor = active ? amberBgActive : amberBgInactive;
+      // For the star (Remarkable) pill we'll show a clearly amber style when active,
+      // and a muted/disabled appearance when inactive (bordered star, hintColor text, subdued bg).
+      final theme = Theme.of(context);
+      final Color textColor = active ? amberMain : theme.hintColor;
+      final Color bgColor = active ? amberBgActive : theme.cardColor.withOpacity(0.06);
+      final IconData displayIcon = active ? Icons.star : Icons.star_border;
+      final FontWeight fw = active ? FontWeight.w700 : FontWeight.w600;
+
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(40)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.star, size: 16, color: textColor),
+            Icon(displayIcon, size: 16, color: textColor),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13)),
+            Text(label, style: TextStyle(color: textColor, fontWeight: fw, fontSize: 13)),
           ],
         ),
       );
@@ -376,7 +387,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
   }
 
   Widget _observationList(List observations) {
-    Widget card(String imgUrl, String text, String time) {
+    Widget card(String? imgUrl, String text, String time) {
       return Container(
         width: 260,
         margin: const EdgeInsets.only(right: 16),
@@ -397,7 +408,26 @@ class _HikeDetailViewState extends State<HikeDetailView> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(imgUrl, height: 70, width: 70, fit: BoxFit.cover),
+              child: imgUrl != null && imgUrl.isNotEmpty
+                  ? Image.network(
+                      imgUrl,
+                      height: 70,
+                      width: 70,
+                      fit: BoxFit.cover,
+                      // Show a small progress indicator while loading
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 70,
+                          width: 70,
+                          color: Theme.of(context).cardColor,
+                          child: const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+                        );
+                      },
+                      // Fall back to the local placeholder if the network image fails
+                      errorBuilder: (context, error, stackTrace) => Image.asset('lib/assets/images/imageholder.png', height: 70, width: 70, fit: BoxFit.cover),
+                    )
+                  : Image.asset('lib/assets/images/imageholder.png', height: 70, width: 70, fit: BoxFit.cover),
             ),
             const SizedBox(height: 12),
             Text(
@@ -419,28 +449,12 @@ class _HikeDetailViewState extends State<HikeDetailView> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: observations.map<Widget>((obs) {
-          // Each observation should carry image/time/text — if not available, show a simple tile
+          // Each observation should carry image/time/text — if not available, show placeholder image
           final img = (obs is Map && obs['img'] != null) ? obs['img'] as String : null;
           final text = (obs is Map && obs['text'] != null) ? obs['text'] as String : (obs?.caption ?? 'Observation');
           final time = (obs is Map && obs['time'] != null) ? obs['time'] as String : (obs?.time ?? '');
 
-          return img != null ? card(img, text, time) : Container(
-            width: 260,
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(text, style: TextStyle(color: Theme.of(context).hintColor)),
-                const SizedBox(height: 6),
-                Text(time, style: TextStyle(color: Theme.of(context).hintColor.withOpacity(0.8), fontSize: 11)),
-              ],
-            ),
-          );
+          return card(img, text, time);
         }).toList(),
       ),
     );
