@@ -4,7 +4,7 @@ import '../../db/app_db.dart';
 import '../../models/observation.dart';
 import '../../models/media_item.dart';
 import 'observation_form_view.dart';
-import 'video_player_view.dart';
+import 'video_handler/video_player_view.dart';
 
 class ObservationDetailView extends StatefulWidget {
   final int observationId;

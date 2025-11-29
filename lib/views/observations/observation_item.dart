@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../models/observation.dart';
 import 'observation_detail_view.dart';
-import 'video_player_view.dart';
+import 'video_handler/video_player_view.dart';
 
 class ObservationItem extends StatelessWidget {
   final Observation observation;
