@@ -27,8 +27,12 @@ class _EmptyRemarkableViewState extends State<EmptyRemarkableView> {
         backgroundColor: theme.cardColor.withOpacity(0.9),
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12.0),
+          child: Image.asset('lib/assets/images/hike_logo.png', width: 32, height: 32, fit: BoxFit.contain),
+        ),
         centerTitle: true,
-        title: Text('Remarkable Hikes', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        title: Text('Remarkable Hikes', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
       ),
 
       body: RefreshIndicator(

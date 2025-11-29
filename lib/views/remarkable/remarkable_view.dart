@@ -157,8 +157,12 @@ class _RemarkableViewState extends State<RemarkableView> {
         backgroundColor: _showGreenAppBar ? colorScheme.primary.withOpacity(0.12) : theme.cardColor.withOpacity(0.9),
         elevation: _showGreenAppBar ? 2 : 0,
         automaticallyImplyLeading: true,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12.0),
+          child: Image.asset('lib/assets/images/hike_logo.png', width: 32, height: 32, fit: BoxFit.contain),
+        ),
         centerTitle: true,
-        title: Text('Remarkable Hikes', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        title: Text('Remarkable Hikes', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
       ),
       body: RefreshIndicator(
         color: colorScheme.primary,

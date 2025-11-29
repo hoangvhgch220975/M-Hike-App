@@ -124,11 +124,22 @@ class _FeedViewState extends State<FeedView> {
           _resetPagination(filtered);
         }
 
-        // If a filter yields no results, show the normal scaffold but render
-        // an inline 'no results' message below the filters instead of
-        // replacing the entire screen. This preserves the app chrome and
-        // filters, and allows pull-to-refresh or switching filters.
-        final bool isEmptyNoLoading = filtered.isEmpty && !vm.isLoading;
+        // Determine whether the DB has no hikes at all (different from a
+        // filter returning zero results). If the unfiltered feed is empty
+        // and not currently loading, return the standalone EmptyFeedView
+        // so it can render its own top AppBar (logo + title). If the DB
+        // has items but the current filter yields no results, show the
+        // inline 'no results' message below the filters so the user can
+        // switch filters or refresh.
+        final bool isDbEmpty = vm.feed.isEmpty && !vm.isLoading;
+        final bool isFilterEmpty = !isDbEmpty && filtered.isEmpty && !vm.isLoading;
+
+        // If the database is truly empty, return the full EmptyFeedView
+        // directly so it provides its own Scaffold/AppBar. This avoids
+        // embedding it inside this Scaffold and keeps the header unique.
+        if (isDbEmpty) {
+          return const EmptyFeedView();
+        }
 
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
@@ -147,11 +158,12 @@ class _FeedViewState extends State<FeedView> {
               ),
             ),
             leading: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.only(left: 12.0),
               child: Image.asset(
                 'lib/assets/images/hike_logo.png',
-                width: 28,
-                height: 28,
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
               ),
             ),
             actions: [
@@ -175,7 +187,7 @@ class _FeedViewState extends State<FeedView> {
                     _buildFilters(theme),
                     const SizedBox(height: 16), // more space to content below
                     Expanded(
-                      child: isEmptyNoLoading
+                      child: (isFilterEmpty
                           ? RefreshIndicator(
                               color: colorScheme.primary,
                               onRefresh: () async {
@@ -215,7 +227,7 @@ class _FeedViewState extends State<FeedView> {
                                 ],
                               ),
                             )
-                          : _displayed.isEmpty && vm.isLoading
+                          : (_displayed.isEmpty && vm.isLoading
                               ? const Center(child: CircularProgressIndicator())
                               : RefreshIndicator(
                                   color: colorScheme.primary,
@@ -281,7 +293,9 @@ class _FeedViewState extends State<FeedView> {
                                       );
                                     },
                                   ),
-                                ),
+                                )
+                      )
+                      )
                     ),
                   ],
                 ),

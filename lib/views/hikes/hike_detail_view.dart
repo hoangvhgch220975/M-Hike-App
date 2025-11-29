@@ -5,6 +5,7 @@ import '../../models/hike.dart';
 import '../../db/app_db.dart';
 import '../../viewmodels/hike_viewmodel.dart';
 import 'hike_form_view.dart';
+import '../observations/no_observation_card.dart';
 
 class HikeDetailView extends StatefulWidget {
   final int hikeId;
@@ -82,6 +83,13 @@ class _HikeDetailViewState extends State<HikeDetailView> {
     }
   }
 
+  void _onAddObservation() async {
+    // Centralized add-observation handler. Replace navigation to a real
+    // AddObservationView if you have one; currently shows a placeholder.
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add observation flow not implemented')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -96,6 +104,17 @@ class _HikeDetailViewState extends State<HikeDetailView> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      // Show a floating action button to add more observations when the hike
+      // is completed and already contains at least one observation. When the
+      // hike has no observations we keep the Add button inside the empty-state
+      // `NoObservationCard` so the FAB is not shown in that case.
+      floatingActionButton: (!_isLoading && _hike != null && _hike!.isComplete && _hike!.observations.isNotEmpty)
+          ? FloatingActionButton.extended(
+              onPressed: _onAddObservation,
+              icon: const Icon(Icons.add_a_photo),
+              label: const Text('Add observation'),
+            )
+          : null,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -261,11 +280,48 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                                 ),
                                 const SizedBox(height: 12),
 
-                                // Observations list - use hike.observations if available
-                                if (_hike!.observations.isEmpty) ...[
-                                  Text('No observations yet.', style: theme.textTheme.bodyMedium),
+                                // Observations are only allowed for completed hikes.
+                                // If the hike is planned, show an informational card stating
+                                // observations cannot be added until the hike is completed.
+                                if (!_hike!.isComplete) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: theme.cardColor,
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: const [BoxShadow(blurRadius: 6, offset: Offset(0, 2), color: Color(0x11000000))],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(color: cs.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                                          child: Icon(Icons.info_outline, color: cs.primary),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Hike is planned', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                              const SizedBox(height: 6),
+                                              Text('Observations can only be added after the hike has been completed.', style: theme.textTheme.bodySmall),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ] else ...[
-                                  _observationList(_hike!.observations),
+                                  // Hike is complete: show observations if present, or the addable empty state.
+                                  if (_hike!.observations.isEmpty) ...[
+                                    NoObservationCard(
+                                      onAdd: _onAddObservation,
+                                    ),
+                                  ] else ...[
+                                    _observationList(_hike!.observations),
+                                  ],
                                 ],
 
                                 const SizedBox(height: 120),
@@ -361,8 +417,9 @@ class _HikeDetailViewState extends State<HikeDetailView> {
             const SizedBox(width: 8),
             Text(label, style: TextStyle(color: textColor, fontWeight: fw, fontSize: 13)),
           ],
-        ),
+        )
       );
+
     }
 
     // Non-star pills: show outlined variant when inactive, colored when active
@@ -382,7 +439,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
           const SizedBox(width: 8),
           Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13)),
         ],
-      ),
+      )
     );
   }
 

@@ -36,10 +36,14 @@ class _EmptyPlanViewState extends State<EmptyPlanView> {
       backgroundColor: theme.scaffoldBackgroundColor,
 
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: theme.cardColor.withOpacity(0.9),
         elevation: 0,
         centerTitle: true,
-        title: Text('Plan', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12.0),
+          child: Image.asset('lib/assets/images/hike_logo.png', width: 32, height: 32, fit: BoxFit.contain),
+        ),
+        title: Text('Plan', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
       ),
 
       body: RefreshIndicator(

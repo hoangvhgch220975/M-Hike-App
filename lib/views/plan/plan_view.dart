@@ -42,7 +42,10 @@ class _PlanViewState extends State<PlanView> {
     if (!_scrollController.hasClients) return;
 
     final offset = _scrollController.offset;
-    final shouldShowGreen = offset > 50; // Show green after scrolling 50px
+    // Match FeedView behavior: show the green app bar as soon as the
+    // user scrolls any amount (offset > 0). This keeps PlanView in sync
+    // with Feed/Remarkable.
+    final shouldShowGreen = offset > 0; // Show green after any scroll
 
     if (shouldShowGreen != _showGreenAppBar) {
       setState(() {
@@ -83,7 +86,11 @@ class _PlanViewState extends State<PlanView> {
             elevation: _showGreenAppBar ? 2 : 0,
             centerTitle: true,
             automaticallyImplyLeading: false,
-            title: Text('Plan', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 12.0),
+              child: Image.asset('lib/assets/images/hike_logo.png', width: 32, height: 32, fit: BoxFit.contain),
+            ),
+            title: Text('Plan', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
           ),
           body: RefreshIndicator(
             color: colorScheme.primary,
