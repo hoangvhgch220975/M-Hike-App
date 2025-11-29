@@ -23,6 +23,7 @@ class _RemarkableViewState extends State<RemarkableView> {
   bool _hasMore = true;
   String? _error;
   bool _showGreenAppBar = false; // AppBar color animation
+  bool _isBottomRefreshing = false;
 
   final int _pageSize = 3; // items per "page" when loading more
 
@@ -45,7 +46,7 @@ class _RemarkableViewState extends State<RemarkableView> {
 
     // Change AppBar color when scrolled
     final offset = _controller.offset;
-    final shouldShowGreen = offset > 50; // Show green after scrolling 50px
+    final shouldShowGreen = offset > 0; // Show green after any scroll to match Feed/Plan
 
     if (shouldShowGreen != _showGreenAppBar) {
       setState(() {
@@ -59,6 +60,26 @@ class _RemarkableViewState extends State<RemarkableView> {
     if (_controller.position.maxScrollExtent - _controller.position.pixels <= threshold) {
       _loadMore();
     }
+  }
+
+  void _triggerBottomRefresh() async {
+    if (_isBottomRefreshing) return;
+    setState(() {
+      _isBottomRefreshing = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1200));
+    await _loadAllRemarkable();
+
+    if (mounted) {
+      final vm = Provider.of<HikeViewModel>(context, listen: false);
+      vm.loadFeed();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Remarkable updated')));
+    }
+
+    setState(() {
+      _isBottomRefreshing = false;
+    });
   }
 
   Future<void> _loadAllRemarkable() async {
@@ -157,85 +178,93 @@ class _RemarkableViewState extends State<RemarkableView> {
         backgroundColor: _showGreenAppBar ? colorScheme.primary.withOpacity(0.12) : theme.cardColor.withOpacity(0.9),
         elevation: _showGreenAppBar ? 2 : 0,
         automaticallyImplyLeading: true,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12.0),
-          child: Image.asset('lib/assets/images/hike_logo.png', width: 32, height: 32, fit: BoxFit.contain),
-        ),
         centerTitle: true,
-        title: Text('Remarkable Hikes', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: Text('Remarkable Hikes', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
       ),
       body: RefreshIndicator(
         color: colorScheme.primary,
         onRefresh: _loadAllRemarkable,
-        child: ListView.builder(
-          controller: _controller,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          itemCount: _displayed.length + (_hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == _displayed.length) {
-              // footer: show loading spinner while searching for more; if none, footer will be hidden
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: _isLoadingMore
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: colorScheme.secondary,
-                                strokeWidth: 3,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text('Searching for more...', style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
-                          ],
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              );
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollUpdateNotification || notification is OverscrollNotification) {
+              final metrics = notification.metrics;
+              if (metrics.pixels > metrics.maxScrollExtent &&
+                  metrics.pixels - metrics.maxScrollExtent > 80) {
+                _triggerBottomRefresh();
+              }
             }
-
-            final hike = _displayed[index];
-            return RemarkableCard(
-              hike: hike,
-              onTap: () async {
-                if (hike.id == null) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Cannot open this hike (missing id)')),
-                    );
-                  }
-                  return;
-                }
-
-                final result = await Navigator.of(context).push<bool?>(
-                  MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
+            return false;
+          },
+          child: ListView.builder(
+            controller: _controller,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            itemCount: _displayed.length + (_hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == _displayed.length) {
+                // footer: show loading spinner while searching for more; if none, footer will be hidden
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: _isLoadingMore
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: colorScheme.secondary,
+                                  strokeWidth: 3,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text('Searching for more...', style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 );
+              }
 
-                if (result == true) {
+              final hike = _displayed[index];
+              return RemarkableCard(
+                hike: hike,
+                onTap: () async {
+                  if (hike.id == null) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cannot open this hike (missing id)')),
+                      );
+                    }
+                    return;
+                  }
+
+                  final result = await Navigator.of(context).push<bool?>(
+                    MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
+                  );
+
+                  if (result == true) {
+                    // Reload the remarkable hikes list
+                    await _loadAllRemarkable();
+                    // Refresh the feed as well
+                    final vm = Provider.of<HikeViewModel>(context, listen: false);
+                    vm.loadFeed();
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
+                    }
+                  }
+                },
+                onRemarkableChanged: () {
                   // Reload the remarkable hikes list
-                  await _loadAllRemarkable();
+                  _loadAllRemarkable();
                   // Refresh the feed as well
                   final vm = Provider.of<HikeViewModel>(context, listen: false);
                   vm.loadFeed();
-
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
-                  }
-                }
-              },
-              onRemarkableChanged: () {
-                // Reload the remarkable hikes list
-                _loadAllRemarkable();
-                // Refresh the feed as well
-                final vm = Provider.of<HikeViewModel>(context, listen: false);
-                vm.loadFeed();
-              },
-            );
-          },
+                },
+              );
+            },
+          ),
         ),
       ),
     );

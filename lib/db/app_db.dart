@@ -486,6 +486,20 @@ class AppDatabase {
      });
    }
 
+  /// Lấy một MediaItem cụ thể theo observationId và media id.
+  Future<MediaItem?> getMediaItemByObservationAndId(int observationId, int mediaId) async {
+    Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      _mediaTable,
+      where: 'observationId = ? AND id = ?',
+      whereArgs: [observationId, mediaId],
+      limit: 1,
+    );
+
+    if (maps.isNotEmpty) return MediaItem.fromMap(maps.first);
+    return null;
+  }
+
    /// Thêm một MediaItem.
    Future<int> insertMediaItem(MediaItem mediaItem) async {
      Database db = await instance.database;

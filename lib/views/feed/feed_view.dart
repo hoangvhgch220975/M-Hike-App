@@ -16,6 +16,7 @@ class FeedView extends StatefulWidget {
 
 class _FeedViewState extends State<FeedView> {
   String _selectedFilter = 'All';
+  bool _isBottomRefreshing = false;
 
   // Pagination
   final ScrollController _controller = ScrollController();
@@ -111,6 +112,30 @@ class _FeedViewState extends State<FeedView> {
     });
   }
 
+  void _triggerBottomRefresh() {
+    if (_isBottomRefreshing) return;
+
+    setState(() {
+      _isBottomRefreshing = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      final vm = Provider.of<HikeViewModel>(context, listen: false);
+      vm.loadFeed();
+      vm.loadRemarkable();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Feed updated')),
+        );
+      }
+
+      setState(() {
+        _isBottomRefreshing = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -141,6 +166,119 @@ class _FeedViewState extends State<FeedView> {
           return const EmptyFeedView();
         }
 
+        // Compute the main scrolling/content widget into a local variable to
+        // avoid complex inline conditional expressions that can confuse
+        // type inference and lead to 'Object' being inferred instead of
+        // 'Widget'.
+        final Widget mainContent = isFilterEmpty
+            ? RefreshIndicator(
+                color: colorScheme.primary,
+                onRefresh: () async {
+                  await vm.loadFeed();
+                  await vm.loadRemarkable();
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(height: 120),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off, size: 52, color: colorScheme.onSurface.withOpacity(0.5)),
+                          const SizedBox(height: 12),
+                          Text('No hikes found for this filter', style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 8),
+                          Text('Try switching filters or pull to refresh.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () async {
+                              // reset to All
+                              setState(() {
+                                _selectedFilter = 'All';
+                                _initialized = false;
+                              });
+                              await vm.loadFeed();
+                              await vm.loadRemarkable();
+                            },
+                            child: const Text('Show all hikes'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 120),
+                  ],
+                ),
+              )
+            : (_displayed.isEmpty && vm.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    color: colorScheme.primary,
+                    onRefresh: () async {
+                      await vm.loadFeed();
+                      await vm.loadRemarkable();
+                    },
+                    child: ListView.builder(
+                      controller: _controller,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: _displayed.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _displayed.length) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: _isLoadingMore
+                                  ? const SizedBox(
+                                      height: 32,
+                                      width: 32,
+                                      child: CircularProgressIndicator(strokeWidth: 3),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          );
+                        }
+
+                        final hike = _displayed[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: FeedCard(
+                            key: ValueKey(hike.id ?? 'no-id-$index'),
+                            hike: hike,
+                            onRemarkableChanged: () {
+                              final vm = Provider.of<HikeViewModel>(context, listen: false);
+                              vm.loadFeed();
+                              vm.loadRemarkable();
+                            },
+                            onTap: () async {
+                              if (hike.id == null) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Cannot open this hike (missing id)')),
+                                  );
+                                }
+                                return;
+                              }
+
+                              final result = await Navigator.of(context).push<bool?>(
+                                MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
+                              );
+
+                              if (result == true) {
+                                // refresh lists
+                                final vm = Provider.of<HikeViewModel>(context, listen: false);
+                                vm.loadFeed();
+                                vm.loadRemarkable();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
+                                }
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ));
+
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
@@ -158,12 +296,11 @@ class _FeedViewState extends State<FeedView> {
               ),
             ),
             leading: Padding(
-              padding: const EdgeInsets.only(left: 12.0),
+              padding: const EdgeInsets.all(12),
               child: Image.asset(
                 'lib/assets/images/hike_logo.png',
-                width: 32,
-                height: 32,
-                fit: BoxFit.contain,
+                width: 28,
+                height: 28,
               ),
             ),
             actions: [
@@ -187,115 +324,21 @@ class _FeedViewState extends State<FeedView> {
                     _buildFilters(theme),
                     const SizedBox(height: 16), // more space to content below
                     Expanded(
-                      child: (isFilterEmpty
-                          ? RefreshIndicator(
-                              color: colorScheme.primary,
-                              onRefresh: () async {
-                                await vm.loadFeed();
-                                await vm.loadRemarkable();
-                              },
-                              child: ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  SizedBox(height: 120),
-                                  Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.search_off, size: 52, color: colorScheme.onSurface.withOpacity(0.5)),
-                                        const SizedBox(height: 12),
-                                        Text('No hikes found for this filter', style: Theme.of(context).textTheme.titleMedium),
-                                        const SizedBox(height: 8),
-                                        Text('Try switching filters or pull to refresh.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
-                                        const SizedBox(height: 16),
-                                        ElevatedButton(
-                                          onPressed: () async {
-                                            // reset to All
-                                            setState(() {
-                                              _selectedFilter = 'All';
-                                              _initialized = false;
-                                            });
-                                            await vm.loadFeed();
-                                            await vm.loadRemarkable();
-                                          },
-                                          child: const Text('Show all hikes'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  SizedBox(height: 120),
-                                ],
-                              ),
-                            )
-                          : (_displayed.isEmpty && vm.isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : RefreshIndicator(
-                                  color: colorScheme.primary,
-                                  onRefresh: () async {
-                                    await vm.loadFeed();
-                                    await vm.loadRemarkable();
-                                  },
-                                  child: ListView.builder(
-                                    controller: _controller,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    itemCount: _displayed.length + (_hasMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (index == _displayed.length) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 24),
-                                          child: Center(
-                                            child: _isLoadingMore
-                                                ? const SizedBox(
-                                                    height: 32,
-                                                    width: 32,
-                                                    child: CircularProgressIndicator(strokeWidth: 3),
-                                                  )
-                                                : const SizedBox.shrink(),
-                                          ),
-                                        );
-                                      }
-
-                                      final hike = _displayed[index];
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 24),
-                                        child: FeedCard(
-                                          hike: hike,
-                                          onRemarkableChanged: () {
-                                            final vm = Provider.of<HikeViewModel>(context, listen: false);
-                                            vm.loadFeed();
-                                            vm.loadRemarkable();
-                                          },
-                                          onTap: () async {
-                                            if (hike.id == null) {
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Cannot open this hike (missing id)')),
-                                                );
-                                              }
-                                              return;
-                                            }
-
-                                            final result = await Navigator.of(context).push<bool?>(
-                                              MaterialPageRoute(builder: (ctx) => HikeDetailView(hikeId: hike.id!)),
-                                            );
-
-                                            if (result == true) {
-                                              // refresh lists
-                                              final vm = Provider.of<HikeViewModel>(context, listen: false);
-                                              vm.loadFeed();
-                                              vm.loadRemarkable();
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
-                                              }
-                                            }
-                                          },
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                )
-                      )
-                      )
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification is ScrollUpdateNotification || notification is OverscrollNotification) {
+                            final metrics = notification.metrics;
+                            // Trigger a bottom-swipe refresh when user overscrolls
+                            // beyond the bottom by a threshold.
+                            if (metrics.pixels > metrics.maxScrollExtent &&
+                                metrics.pixels - metrics.maxScrollExtent > 80) {
+                              _triggerBottomRefresh();
+                            }
+                          }
+                          return false;
+                        },
+                        child: mainContent,
+                      ),
                     ),
                   ],
                 ),

@@ -1,5 +1,6 @@
 // lib/views/feed/widgets/feed_card.dart
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../models/hike.dart';
 import '../../../db/app_db.dart';
@@ -23,11 +24,53 @@ class FeedCard extends StatefulWidget {
 
 class _FeedCardState extends State<FeedCard> {
   late bool _isRemarkable;
+  String? _bannerPath;
 
   @override
   void initState() {
     super.initState();
     _isRemarkable = widget.hike.isRemarkable;
+    _loadBannerIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant FeedCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When the parent rebuilds (filtering / pagination), Flutter may reuse
+    // the same State object for a different Hike instance. If the hike id
+    // changed we must reload the banner and update state accordingly.
+    if (oldWidget.hike.id != widget.hike.id) {
+      _isRemarkable = widget.hike.isRemarkable;
+      _bannerPath = null;
+      _loadBannerIfNeeded();
+    }
+  }
+
+  Future<void> _loadBannerIfNeeded() async {
+    try {
+      if (widget.hike.id == null) return;
+      final observations = await AppDatabase.instance.getObservationsByHike(widget.hike.id!);
+      String? path;
+      if (observations.isNotEmpty) {
+        final firstObs = observations.first;
+        if (firstObs.media.isNotEmpty) path = firstObs.media.first.path;
+      }
+      if (!mounted) return;
+      setState(() => _bannerPath = path);
+    } catch (_) {
+      // ignore and fallback to asset
+    }
+  }
+
+  Widget _buildBannerWidget(String? path) {
+    if (path == null || path.isEmpty) {
+      return Image.asset('lib/assets/images/imageholder.png', fit: BoxFit.cover);
+    }
+
+    if (path.startsWith('http') || path.startsWith('https')) return Image.network(path, fit: BoxFit.cover);
+    if (path.startsWith('file://')) return Image.file(File(path.replaceFirst('file://', '')), fit: BoxFit.cover);
+    if (path.startsWith('/') || RegExp(r'^[a-zA-Z]:\\').hasMatch(path)) return Image.file(File(path), fit: BoxFit.cover);
+    return Image.asset(path, fit: BoxFit.cover);
   }
 
   Future<void> _toggleRemarkable() async {
@@ -113,10 +156,7 @@ class _FeedCardState extends State<FeedCard> {
                   ),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: Image.asset(
-                      'lib/assets/images/imageholder.png',
-                      fit: BoxFit.cover,
-                    ),
+                    child: ClipRect(child: _buildBannerWidget(_bannerPath)),
                   ),
                 ),
                 // Remarkable button overlay

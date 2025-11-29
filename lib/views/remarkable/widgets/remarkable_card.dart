@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../models/hike.dart';
 import '../../../db/app_db.dart';
@@ -21,11 +22,13 @@ class RemarkableCard extends StatefulWidget {
 
 class _RemarkableCardState extends State<RemarkableCard> {
   late bool _isRemarkable;
+  String? _bannerPath;
 
   @override
   void initState() {
     super.initState();
     _isRemarkable = widget.hike.isRemarkable;
+    _loadBannerIfNeeded();
   }
 
   Future<void> _toggleRemarkable() async {
@@ -81,6 +84,30 @@ class _RemarkableCardState extends State<RemarkableCard> {
     }
   }
 
+  Future<void> _loadBannerIfNeeded() async {
+    try {
+      if (widget.hike.id == null) return;
+      final observations = await AppDatabase.instance.getObservationsByHike(widget.hike.id!);
+      String? path;
+      if (observations.isNotEmpty) {
+        final firstObs = observations.first;
+        if (firstObs.media.isNotEmpty) path = firstObs.media.first.path;
+      }
+      if (!mounted) return;
+      setState(() => _bannerPath = path);
+    } catch (_) {
+      // ignore and fallback to placeholder
+    }
+  }
+
+  Widget _buildBannerWidget(String? path) {
+    if (path == null || path.isEmpty) return Image.asset('lib/assets/images/imageholder.png', fit: BoxFit.cover);
+    if (path.startsWith('http') || path.startsWith('https')) return Image.network(path, fit: BoxFit.cover);
+    if (path.startsWith('file://')) return Image.file(File(path.replaceFirst('file://', '')), fit: BoxFit.cover);
+    if (path.startsWith('/') || RegExp(r'^[a-zA-Z]:\\').hasMatch(path)) return Image.file(File(path), fit: BoxFit.cover);
+    return Image.asset(path, fit: BoxFit.cover);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -112,14 +139,7 @@ class _RemarkableCardState extends State<RemarkableCard> {
                     child: SizedBox(
                       height: 200,
                       width: double.infinity,
-                      child: Image.asset(
-                        'lib/assets/images/imageholder.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: theme.cardColor,
-                          child: Icon(Icons.image, size: 48, color: theme.iconTheme.color),
-                        ),
-                      ),
+                      child: ClipRect(child: _buildBannerWidget(_bannerPath)),
                     ),
                   ),
                   // Remarkable button overlay

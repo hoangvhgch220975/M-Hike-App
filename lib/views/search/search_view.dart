@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +19,8 @@ class _SearchViewState extends State<SearchView> {
   Timer? _debounce;
   bool _isSearching = false;
   List<Hike> _results = [];
+  // Map of hikeId -> image path (local or network). Used to display thumbnail per result.
+  final Map<int, String> _imageForHike = {};
   String _query = '';
 
   // Recent searches (most recent first)
@@ -36,6 +39,53 @@ class _SearchViewState extends State<SearchView> {
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  // Load first image for each hike in _results. We bind the load operation to
+  // the query string snapshot so that if the user types a new query while
+  // images are loading we don't apply stale images to a newer result set.
+  Future<void> _loadImagesForResults(String querySnapshot) async {
+    // Clear previous images for safety
+    if (!mounted) return;
+    _imageForHike.clear();
+
+    for (final hike in _results) {
+      // If query changed since we started, abort to avoid races
+      if (!mounted || querySnapshot != _query) return;
+      if (hike.id == null) continue;
+
+      try {
+        final detail = await AppDatabase.instance.getHikeDetailData(hike.id!);
+        if (detail == null) continue;
+
+        String? foundPath;
+        if (detail.observations.isNotEmpty) {
+          for (final obs in detail.observations) {
+            if (obs.media.isNotEmpty) {
+              // pick first image media item if exists
+              for (final m in obs.media) {
+                try {
+                  if ((m.type).toLowerCase() == 'image' && (m.path as String).isNotEmpty) {
+                    foundPath = m.path as String;
+                    break;
+                  }
+                } catch (_) {}
+              }
+            }
+            if (foundPath != null) break;
+          }
+        }
+
+        if (!mounted || querySnapshot != _query) return;
+        if (foundPath != null) {
+          setState(() {
+            _imageForHike[hike.id!] = foundPath!;
+          });
+        }
+      } catch (_) {
+        // ignore per-hike load errors
+      }
+    }
   }
 
   Future<void> _loadRecent() async {
@@ -82,6 +132,7 @@ class _SearchViewState extends State<SearchView> {
       setState(() {
         _results = [];
         _isSearching = false;
+        _imageForHike.clear();
       });
       return;
     }
@@ -92,10 +143,18 @@ class _SearchViewState extends State<SearchView> {
       try {
         final items = await AppDatabase.instance.searchHikes(_query);
         if (!mounted) return;
+        // snapshot the query so image loads can be cancelled if a new query arrives
+        final currentQuery = _query;
         setState(() {
           _results = items;
           _isSearching = false;
+          _imageForHike.clear();
         });
+
+        // kick off background loads for images (non-blocking)
+        // fire-and-forget; ignore analyzer lint about unawaited futures here
+        // ignore: unawaited_futures
+        _loadImagesForResults(currentQuery);
       } catch (e) {
         if (!mounted) return;
         setState(() {
@@ -142,6 +201,8 @@ class _SearchViewState extends State<SearchView> {
     if (result == true) {
       if (_query.isNotEmpty) {
         _onChanged(_query);
+        // ensure images are refreshed
+        // _onChanged will trigger _loadImagesForResults via its async flow
       }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hike updated')));
     }
@@ -233,7 +294,9 @@ class _SearchViewState extends State<SearchView> {
           park: hike.location,
           distance: '${hike.length.toStringAsFixed(1)} km',
           difficulty: hike.difficulty,
-          imageUrl: 'lib/assets/images/imageholder.png', // placeholder; replace if hike has image
+          imageUrl: (hike.id != null && _imageForHike.containsKey(hike.id))
+              ? _imageForHike[hike.id!]!
+              : 'lib/assets/images/imageholder.png',
           onTap: () => _onResultTap(hike),
         );
       },
@@ -358,6 +421,19 @@ class HikeItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Choose appropriate ImageProvider for asset, network or local file
+    ImageProvider provider;
+    if (imageUrl.startsWith('http')) {
+      provider = NetworkImage(imageUrl);
+    } else if (imageUrl.startsWith('file://')) {
+      provider = FileImage(File(imageUrl.replaceFirst('file://', '')));
+    } else if (imageUrl.startsWith('/') || RegExp(r'^[a-zA-Z]:\\').hasMatch(imageUrl)) {
+      // Absolute file path on Android/iOS/Windows
+      provider = FileImage(File(imageUrl));
+    } else {
+      provider = AssetImage(imageUrl);
+    }
+
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -372,7 +448,7 @@ class HikeItem extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image(
-                image: imageUrl.startsWith('http') ? NetworkImage(imageUrl) : AssetImage(imageUrl) as ImageProvider,
+                image: provider,
                 width: 70,
                 height: 70,
                 fit: BoxFit.cover,
