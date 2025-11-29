@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../models/observation.dart';
 import 'observation_detail_view.dart';
+import 'video_player_view.dart';
 
 class ObservationItem extends StatelessWidget {
   final Observation observation;
@@ -61,22 +62,45 @@ class ObservationItem extends StatelessWidget {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: observation.media.map((m) {
-                    final provider = _providerForPath(m.path);
-                    return GestureDetector(
-                      onTap: () {
-                        // show full image in dialog
-                        _showFullImage(context, m.path);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          image: DecorationImage(image: provider, fit: BoxFit.cover),
+                    final isVideo = (m.type ?? '').toLowerCase() == 'video';
+                    if (!isVideo) {
+                      final provider = _providerForPath(m.path);
+                      return GestureDetector(
+                        onTap: () => _showFullImage(context, m.path),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            image: DecorationImage(image: provider, fit: BoxFit.cover),
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      // Video tile: show a thumbnail if possible (FileImage) with a play overlay
+                      Widget thumb;
+                      try {
+                        final provider = _providerForPath(m.path);
+                        thumb = Image(image: provider, width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.black));
+                      } catch (_) {
+                        thumb = Container(color: Colors.black, width: 72, height: 72);
+                      }
+
+                      return GestureDetector(
+                        onTap: () {
+                          // open full-screen video player
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => VideoPlayerView(path: m.path)));
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(margin: const EdgeInsets.only(right: 8), width: 72, height: 72, child: ClipRRect(borderRadius: BorderRadius.circular(12), child: thumb)),
+                            const Icon(Icons.play_circle_outline, color: Colors.white, size: 32),
+                          ],
+                        ),
+                      );
+                    }
                   }).toList(),
                 ),
               ),

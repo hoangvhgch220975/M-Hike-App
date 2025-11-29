@@ -4,6 +4,7 @@ import '../../db/app_db.dart';
 import '../../models/observation.dart';
 import '../../models/media_item.dart';
 import 'observation_form_view.dart';
+import 'video_player_view.dart';
 
 class ObservationDetailView extends StatefulWidget {
   final int observationId;
@@ -153,16 +154,29 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
                         itemBuilder: (ctx, i) {
                           final MediaItem m = _observation!.media[i];
                           final provider = _providerForPath(m.path);
+                          final isVideo = (m.type ?? '').toLowerCase() == 'video';
                           return GestureDetector(
-                            onTap: () => _showFullImage(m.path),
+                            onTap: () {
+                              if (isVideo) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => VideoPlayerView(path: m.path)));
+                              } else {
+                                _showFullImage(m.path);
+                              }
+                            },
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image(
-                                image: provider,
-                                width: 100,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Container(color: theme.cardColor, width: 100, height: 80, child: const Icon(Icons.broken_image)),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Image(
+                                    image: provider,
+                                    width: 100,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => Container(color: theme.cardColor, width: 100, height: 80, child: const Icon(Icons.broken_image)),
+                                  ),
+                                  if (isVideo) const Icon(Icons.play_circle_outline, color: Colors.white, size: 36),
+                                ],
                               ),
                             ),
                           );
@@ -174,69 +188,68 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
 
                   Row(
                     children: [
+                      // Edit button
                       Expanded(
                         child: Container(
                           height: 56,
                           decoration: BoxDecoration(color: const Color(0xff2F4F2F).withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
                           child: TextButton.icon(
                             onPressed: () async {
-                              // Open the ObservationFormView for editing. If it returns
-                              // true (meaning the observation was saved), pop true so
-                              // upstream callers can reload.
                               if (_observation?.id == null) return;
                               final result = await Navigator.of(context).push<bool?>(
                                 MaterialPageRoute(builder: (_) => ObservationFormView(observationId: _observation!.id, hikeId: _observation!.hikeId)),
                               );
                               if (result == true) {
-                                // Signal callers (e.g. inline list or hike detail) to reload
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Observation updated')));
-                                  Navigator.of(context).pop(true);
-                                }
+                                // If edited, reload locally then inform upstream callers by popping true
+                                await _loadObservation();
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Observation updated')));
+                                Navigator.of(context).pop(true);
                               }
                             },
                             icon: const Icon(Icons.edit, color: Color(0xff2F4F2F)),
-                            label: const Text('Edit', style: TextStyle(color: Color(0xff2F4F2F), fontSize: 17, fontWeight: FontWeight.w500)),
+                            label: const Text('Edit', style: TextStyle(color: Color(0xff2F4F2F))),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
+                      // Delete button
                       Expanded(
                         child: Container(
                           height: 56,
-                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.06), borderRadius: BorderRadius.circular(20)),
                           child: TextButton.icon(
                             onPressed: () async {
-                              // Delete confirmation
-                              final ok = await showDialog<bool>(
+                              if (_observation?.id == null) return;
+                              final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   title: const Text('Delete observation?'),
-                                  content: const Text('This will permanently delete the observation and its media.'),
+                                  content: const Text('Are you sure you want to delete this observation? This cannot be undone.'),
                                   actions: [
                                     TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
                                     TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
                                   ],
                                 ),
                               );
-                              if (ok == true) {
-                                if (_observation?.id != null) {
-                                  await AppDatabase.instance.deleteObservation(_observation!.id!);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Observation deleted')));
-                                    // Return true so callers can react and reload their data
-                                    Navigator.of(context).pop(true);
-                                  }
-                                }
+                              if (confirm != true) return;
+                              final deleted = await AppDatabase.instance.deleteObservation(_observation!.id!);
+                              if (!mounted) return;
+                              if (deleted > 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Observation deleted')));
+                                Navigator.of(context).pop(true);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete observation')));
+                                await _loadObservation();
                               }
                             },
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 17, fontWeight: FontWeight.w500)),
+                            label: const Text('Delete', style: TextStyle(color: Colors.red)),
                           ),
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),

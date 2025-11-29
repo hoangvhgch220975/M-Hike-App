@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../db/app_db.dart';
 import '../../models/observation.dart';
 import '../../models/media_item.dart';
@@ -25,7 +26,8 @@ class _ObservationFormViewState extends State<ObservationFormView> {
   int? _hikeId;
   int? _observationId;
   List<MediaItem> _media = []; // existing media (from DB) when editing
-  List<String> _newMediaPaths = []; // newly picked media paths
+  // Newly picked media: store map entries with path and type ('image'|'video')
+  List<Map<String, String>> _newMedia = [];
 
   @override
   void initState() {
@@ -70,18 +72,158 @@ class _ObservationFormViewState extends State<ObservationFormView> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    // Ensure permissions (camera/gallery) are granted before picking
+    final ok = await _ensurePermissionsForMedia(forVideo: false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission denied')));
+      return;
+    }
+
     final XFile? file = await _picker.pickImage(source: source, imageQuality: 80);
     if (file == null) return;
     setState(() {
-      _newMediaPaths.add(file.path);
+      _newMedia.add({'path': file.path, 'type': 'image'});
     });
+  }
+
+  // Pick multiple images from gallery
+  Future<void> _pickMultiImage() async {
+    final ok = await _ensurePermissionsForMedia(forVideo: false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission denied')));
+      return;
+    }
+
+    final List<XFile>? files = await _picker.pickMultiImage(imageQuality: 80);
+    if (files == null || files.isEmpty) return;
+    setState(() {
+      for (final f in files) {
+        _newMedia.add({'path': f.path, 'type': 'image'});
+      }
+    });
+  }
+
+  Future<void> _pickVideo(ImageSource source) async {
+    // Ensure camera/microphone/storage permissions
+    final ok = await _ensurePermissionsForMedia(forVideo: true);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission denied')));
+      return;
+    }
+
+    final XFile? file = await _picker.pickVideo(source: source);
+    if (file == null) return;
+    setState(() {
+      _newMedia.add({'path': file.path, 'type': 'video'});
+    });
+  }
+
+  // Pick multiple videos from gallery using image_picker (one-by-one)
+  Future<void> _pickMultipleVideos() async {
+    // Many devices don't provide a native multiple-video picker via image_picker.
+    // To avoid depending on the file_picker plugin (which caused build failures),
+    // we let the user pick videos one-by-one from gallery until they cancel.
+    final ok = await _ensurePermissionsForMedia(forVideo: true);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission denied')));
+      return;
+    }
+
+    bool keepPicking = true;
+    while (keepPicking) {
+      final XFile? file = await _picker.pickVideo(source: ImageSource.gallery);
+      if (file == null) break; // user cancelled
+      setState(() {
+        _newMedia.add({'path': file.path, 'type': 'video'});
+      });
+
+      // Ask user if they want to pick another
+      final pickAnother = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Add another video?'),
+          content: const Text('Do you want to select another video from the gallery?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Yes')),
+          ],
+        ),
+      );
+      if (pickAnother != true) keepPicking = false;
+    }
+  }
+
+  // Request platform permissions required for camera/gallery/video recording
+  Future<bool> _ensurePermissionsForMedia({required bool forVideo}) async {
+    try {
+      List<Permission> perms = [];
+      if (Platform.isAndroid) {
+        // On Android 13+ you should request READ_MEDIA_* permissions. Using
+        // Permission.photos from permission_handler maps to READ_MEDIA_IMAGES
+        // / READ_MEDIA_VIDEO as appropriate. This avoids relying on legacy
+        // storage permissions which can be denied on newer OS versions.
+        perms = [Permission.camera, Permission.photos];
+        if (forVideo) perms.add(Permission.microphone);
+      } else if (Platform.isIOS) {
+        // On iOS request photos + camera; microphone for video
+        perms = [Permission.photos, Permission.camera];
+        if (forVideo) perms.add(Permission.microphone);
+      } else {
+        // Fallback: request camera if available
+        perms = [Permission.camera];
+        if (forVideo) perms.add(Permission.microphone);
+      }
+
+      final statuses = await perms.request();
+      debugPrint('Requested permissions: ${perms.map((p) => p.toString()).toList()}');
+      debugPrint('Permission statuses: ${statuses.map((k, v) => MapEntry(k.toString(), v.toString()))}');
+
+      // If any permission is permanently denied, suggest opening app settings
+      final permanentlyDenied = statuses.entries.where((e) => e.value.isPermanentlyDenied).toList();
+      final denied = statuses.entries.where((e) => e.value.isDenied).toList();
+
+      if (permanentlyDenied.isNotEmpty) {
+        // Explain why and offer to open app settings
+        if (!mounted) return false;
+        final open = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Permissions required'),
+            content: const Text('Some permissions are permanently denied. Open app settings to enable camera or storage permissions?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Open settings')),
+            ],
+          ),
+        );
+        if (open == true) await openAppSettings();
+        return false;
+      }
+
+      if (denied.isNotEmpty) {
+        // User denied but not permanently; show a friendly message and return false
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permissions were denied. Please allow camera/gallery access.')));
+        return false;
+      }
+
+      // Consider granted or limited as OK
+      return statuses.values.every((s) => s.isGranted || s.isLimited);
+    } catch (e) {
+      // If permission handler fails, log and allow the picker to try (some platforms
+      // will still show system pickers). Return false to be conservative.
+      debugPrint('Permission check failed: $e');
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to check permissions')));
+      return false;
+    }
   }
 
   Widget _buildMediaGrid() {
     final demoImages = <String>[]; // keep demo removed when real data present
 
-    // Build combined list: existing media paths followed by new ones
-    final combined = [for (var m in _media) m.path] + _newMediaPaths;
+    // Build combined list: existing MediaItem objects followed by new media maps
+    final combined = <dynamic>[for (var m in _media) m] + _newMedia;
 
     if (combined.isEmpty) {
       // show existing placeholder grid from original UI for empty state
@@ -118,16 +260,54 @@ class _ObservationFormViewState extends State<ObservationFormView> {
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       physics: const NeverScrollableScrollPhysics(),
-      children: combined.map((path) {
-        final isNew = _newMediaPaths.contains(path);
+      children: combined.map((entry) {
+        String path;
+        String type;
+        bool isNew = false;
+
+        if (entry is MediaItem) {
+          path = entry.path;
+          type = entry.type;
+          isNew = false;
+        } else if (entry is Map<String, String>) {
+          path = entry['path'] ?? '';
+          type = entry['type'] ?? 'image';
+          isNew = true;
+        } else {
+          // Skip unsupported entry types
+          return const SizedBox.shrink();
+        }
+
         return Stack(
           clipBehavior: Clip.none,
           children: [
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                image: DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover),
                 color: Colors.white,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: type.toLowerCase() == 'image'
+                    ? Image.file(File(path), fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                    : // For video files show a simple placeholder with a play icon.
+                    Container(
+                        color: Colors.black,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.play_circle_outline, color: Colors.white, size: 48),
+                              const SizedBox(height: 6),
+                              Text(
+                                path.split('/').last,
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
               ),
             ),
             Positioned(
@@ -137,7 +317,7 @@ class _ObservationFormViewState extends State<ObservationFormView> {
                 onTap: () {
                   setState(() {
                     if (isNew) {
-                      _newMediaPaths.remove(path);
+                      _newMedia.removeWhere((m) => m['path'] == path);
                     } else {
                       // mark existing media for deletion by removing from _media
                       _media.removeWhere((m) => m.path == path);
@@ -168,7 +348,7 @@ class _ObservationFormViewState extends State<ObservationFormView> {
 
     final caption = _captionCtrl.text.trim();
     final content = _contentCtrl.text.trim();
-    if (caption.isEmpty && content.isEmpty && _media.isEmpty && _newMediaPaths.isEmpty) {
+    if (caption.isEmpty && content.isEmpty && _media.isEmpty && _newMedia.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add some content or media')));
       return;
     }
@@ -183,8 +363,8 @@ class _ObservationFormViewState extends State<ObservationFormView> {
         final obs = Observation(hikeId: _hikeId!, caption: caption, content: content, time: DateTime.now().toIso8601String());
         final newId = await AppDatabase.instance.insertObservation(obs);
         // insert media if any
-        if (_newMediaPaths.isNotEmpty) {
-          final mediaItems = _newMediaPaths.map((p) => MediaItem(observationId: newId, path: p, type: 'image')).toList();
+        if (_newMedia.isNotEmpty) {
+          final mediaItems = _newMedia.map((m) => MediaItem(observationId: newId, path: m['path']!, type: m['type']!)).toList();
           await AppDatabase.instance.insertMediaItems(mediaItems);
         }
       } else {
@@ -193,15 +373,24 @@ class _ObservationFormViewState extends State<ObservationFormView> {
         await AppDatabase.instance.updateObservation(obs);
 
         // Remove existing media rows for this observation; then insert remaining + new ones
+        // Delete all existing rows then re-insert current + new ones
         final existing = await AppDatabase.instance.getMediaForObservation(_observationId!);
         for (final m in existing) {
           await AppDatabase.instance.deleteMediaItem(m.id!);
         }
 
-        final combined = [for (var m in _media) m.path] + _newMediaPaths;
-        if (combined.isNotEmpty) {
-          final mediaItems = combined.map((p) => MediaItem(observationId: _observationId!, path: p, type: 'image')).toList();
-          await AppDatabase.instance.insertMediaItems(mediaItems);
+        final List<MediaItem> toInsert = [];
+        // remaining existing media (kept in _media)
+        for (final m in _media) {
+          toInsert.add(MediaItem(observationId: _observationId!, path: m.path, type: m.type));
+        }
+        // new media
+        for (final nm in _newMedia) {
+          toInsert.add(MediaItem(observationId: _observationId!, path: nm['path']!, type: nm['type']!));
+        }
+
+        if (toInsert.isNotEmpty) {
+          await AppDatabase.instance.insertMediaItems(toInsert);
         }
       }
 
@@ -280,15 +469,69 @@ class _ObservationFormViewState extends State<ObservationFormView> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.photo_camera),
+                    onPressed: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        builder: (ctx) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.photo_camera),
+                                title: const Text('Take photo'),
+                                onTap: () {
+                                  Navigator.of(ctx).pop();
+                                  _pickImage(ImageSource.camera);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.videocam),
+                                title: const Text('Record video'),
+                                onTap: () {
+                                  Navigator.of(ctx).pop();
+                                  _pickVideo(ImageSource.camera);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.camera_alt),
                     label: const Text('Camera'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
+                    onPressed: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        builder: (ctx) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.photo_library),
+                                title: const Text('Pick images'),
+                                onTap: () {
+                                  Navigator.of(ctx).pop();
+                                  _pickMultiImage();
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.video_library),
+                                title: const Text('Pick videos'),
+                                onTap: () {
+                                  Navigator.of(ctx).pop();
+                                  _pickMultipleVideos();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.photo_library),
                     label: const Text('Gallery'),
                   ),
@@ -296,27 +539,31 @@ class _ObservationFormViewState extends State<ObservationFormView> {
               ],
             ),
 
+            const SizedBox(height: 12),
+            // Video controls: allow picking video from camera or gallery
             const SizedBox(height: 24),
-
-            // Submit
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              color: const Color(0xfff5f5f5),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff2d572c),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                  ),
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Submit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-            ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          color: const Color(0xfff5f5f5),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xff2d572c),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 4,
+              ),
+              onPressed: _isSubmitting ? null : _submit,
+              child: _isSubmitting
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Submit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ),
         ),
       ),
     );
