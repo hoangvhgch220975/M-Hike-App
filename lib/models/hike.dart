@@ -12,6 +12,7 @@ class Hike {
   String? description;
   bool isComplete; // Dùng để lọc Feed/Plan
   bool isRemarkable; // Dùng để lọc Remarkable
+  bool hasParking; // New: Có chỗ đỗ xe hay không (yes/no)
   List<Observation> observations; // Danh sách observations liên quan
 
   Hike({
@@ -24,6 +25,7 @@ class Hike {
     this.description,
     this.isComplete = false,
     this.isRemarkable = false,
+    this.hasParking = false,
     this.observations = const [], // Khởi tạo rỗng
   });
 
@@ -40,6 +42,7 @@ class Hike {
       // Lưu bool dưới dạng int (1 cho true, 0 cho false) trong SQLite
       'isComplete': isComplete ? 1 : 0,
       'isRemarkable': isRemarkable ? 1 : 0,
+      'hasParking': hasParking ? 1 : 0,
     };
   }
 
@@ -76,6 +79,7 @@ class Hike {
       // Chuyển int thành bool
       isComplete: parseBool(map['isComplete']),
       isRemarkable: parseBool(map['isRemarkable']),
+      hasParking: parseBool(map['hasParking']),
       // observations sẽ được thêm vào sau khi lấy từ database
       observations: [],
     );

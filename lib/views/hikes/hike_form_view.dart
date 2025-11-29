@@ -112,7 +112,20 @@ class _HikeFormViewState extends State<HikeFormView> {
       locationController.text = h.location;
       descriptionController.text = h.description ?? '';
       difficulty = h.difficulty;
-      // parkingAvailable isn't stored on Hike model; leave default
+      parkingAvailable = h.hasParking;
+      // Populate the ViewModel with the existing hike values so saving doesn't overwrite flags
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final vm = Provider.of<HikeViewModel>(context, listen: false);
+        vm.name = h.name;
+        vm.location = h.location;
+        vm.date = h.date;
+        vm.length = h.length;
+        vm.difficulty = h.difficulty;
+        vm.description = h.description;
+        vm.isComplete = h.isComplete;
+        vm.isRemarkable = h.isRemarkable;
+        vm.hasParking = h.hasParking;
+      });
     }
   }
 
@@ -411,12 +424,20 @@ class _HikeFormViewState extends State<HikeFormView> {
         vm.length = double.tryParse(lengthController.text.trim()) ?? 0.0;
         vm.difficulty = difficulty;
         vm.description = descriptionController.text.trim();
+        // Ensure the ViewModel receives the parking value from the form
+        vm.hasParking = parkingAvailable;
+        // If we're editing an existing hike, preserve its completion/remarkable state
+        // Don't set isComplete/isRemarkable here — saveHike() will fetch the
+        // existing database record (if id != null) and preserve those flags.
 
         if (!vm.formKey.currentState!.validate()) return;
 
         final success = await vm.saveHike(id: widget.hike?.id);
 
         if (success) {
+          // Refresh VM data so feed/plan/remarkable lists update across the app
+          await vm.reloadAll();
+
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.hike == null ? 'Hike added' : 'Hike updated')));
             Navigator.of(context).pop(true);

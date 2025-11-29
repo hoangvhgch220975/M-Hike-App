@@ -42,6 +42,7 @@ class _RemarkableCardState extends State<RemarkableCard> {
       description: widget.hike.description,
       isComplete: widget.hike.isComplete,
       isRemarkable: newValue,
+      hasParking: widget.hike.hasParking,
     );
 
     try {

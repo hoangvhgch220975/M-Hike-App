@@ -230,7 +230,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                                   date: _hike!.date,
                                   length: "${_hike!.length.toStringAsFixed(1)} km",
                                   difficulty: _hike!.difficulty,
-                                  parking: 'N/A',
+                                  parking: _hike!.hasParking ? 'Yes' : 'No',
                                 ),
 
                                 const SizedBox(height: 20),

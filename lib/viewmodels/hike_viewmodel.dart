@@ -16,6 +16,7 @@ class HikeViewModel extends ChangeNotifier {
   String? description;
   bool isComplete = false;
   bool isRemarkable = false;
+  bool hasParking = false;
 
   // Lists for different categories
   List<Hike> hikes = [];
@@ -109,6 +110,7 @@ class HikeViewModel extends ChangeNotifier {
     description = null;
     isComplete = false;
     isRemarkable = false;
+    hasParking = false;
     autoLength = false;
     manualLength = null;
     calculatedLength = null;
@@ -126,6 +128,7 @@ class HikeViewModel extends ChangeNotifier {
     description = hike.description;
     isComplete = hike.isComplete;
     isRemarkable = hike.isRemarkable;
+    hasParking = hike.hasParking;
     notifyListeners();
   }
 
@@ -136,6 +139,23 @@ class HikeViewModel extends ChangeNotifier {
     }
 
     try {
+      // If updating an existing hike, load it first to preserve flags
+      bool preserveIsComplete = isComplete;
+      bool preserveIsRemarkable = isRemarkable;
+      if (id != null) {
+        try {
+          final existing = await AppDatabase.instance.getHikeById(id);
+          if (existing != null) {
+            // Preserve fields that are not exposed/edited by the form
+            preserveIsComplete = existing.isComplete;
+            preserveIsRemarkable = existing.isRemarkable;
+          }
+        } catch (e) {
+          // If fetching fails, fall back to current VM values
+          debugPrint('Warning: failed to load existing hike to preserve flags: $e');
+        }
+      }
+
       final hike = Hike(
         id: id,
         name: name,
@@ -144,8 +164,9 @@ class HikeViewModel extends ChangeNotifier {
         length: length,
         difficulty: difficulty,
         description: description,
-        isComplete: isComplete,
-        isRemarkable: isRemarkable,
+        isComplete: preserveIsComplete,
+        isRemarkable: preserveIsRemarkable,
+        hasParking: hasParking,
       );
 
       if (id == null) {
@@ -329,6 +350,16 @@ class HikeViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error getting count: $e');
       return 0;
+    }
+  }
+
+  /// Reload everything (hikes + categories). Call this after operations that
+  /// change data so UI consumers rebuild with fresh data.
+  Future<void> reloadAll() async {
+    try {
+      await initialize();
+    } catch (e) {
+      debugPrint('Error reloading data: $e');
     }
   }
 }
