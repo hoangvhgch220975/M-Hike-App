@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../models/observation.dart';
+import '../../models/media_item.dart';
 import 'observation_detail_view.dart';
 import 'video_handler/video_player_view.dart';
 
@@ -67,14 +68,17 @@ class ObservationItem extends StatelessWidget {
             if (observation.media.isNotEmpty) ...[
               SizedBox(
                 height: 72,
-                child: ListView(
+                child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  children: observation.media.map((m) {
+                  itemCount: observation.media.length,
+                  itemBuilder: (context, index) {
+                    final m = observation.media[index];
                     final isVideo = (m.type ?? '').toLowerCase() == 'video';
+
                     if (!isVideo) {
                       final provider = _providerForPath(m.path);
                       return GestureDetector(
-                        onTap: () => _showFullImage(context, m.path),
+                        onTap: () => _showMediaGallery(context, observation.media, index),
                         child: Container(
                           margin: const EdgeInsets.only(right: 8),
                           width: 72,
@@ -96,10 +100,7 @@ class ObservationItem extends StatelessWidget {
                       }
 
                       return GestureDetector(
-                        onTap: () {
-                          // open full-screen video player
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => VideoPlayerView(path: m.path)));
-                        },
+                        onTap: () => _showMediaGallery(context, observation.media, index),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -109,7 +110,7 @@ class ObservationItem extends StatelessWidget {
                         ),
                       );
                     }
-                  }).toList(),
+                  },
                 ),
               ),
               const SizedBox(height: 8),
@@ -220,6 +221,25 @@ class _ObservationListForHikeState extends State<ObservationListForHike> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (_isLoading) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+    if (_error != null) return SizedBox(
+      height: 200,
+      child: Center(
+        child: Text(
+          'Failed to load observations',
+          style: theme.textTheme.bodyLarge,
+        ),
+      ),
+    );
+    if (_observations.isEmpty) return SizedBox(
+      height: 200,
+      child: Center(
+        child: Text(
+          'No observations',
+          style: theme.textTheme.bodyLarge,
+        ),
+      ),
+    );
 
     final display = widget.limit != null ? _observations.take(widget.limit!).toList() : _observations;
 
@@ -257,6 +277,244 @@ void _showFullImage(BuildContext context, String path) {
       ),
     ),
   );
+}
+
+/// Show swipeable media gallery starting from a specific index
+void _showMediaGallery(BuildContext context, List<MediaItem> mediaList, int initialIndex) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => _MediaGalleryView(
+        mediaList: mediaList,
+        initialIndex: initialIndex,
+      ),
+    ),
+  );
+}
+
+/// Full-screen swipeable media gallery
+class _MediaGalleryView extends StatefulWidget {
+  final List<MediaItem> mediaList;
+  final int initialIndex;
+
+  const _MediaGalleryView({
+    required this.mediaList,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_MediaGalleryView> createState() => _MediaGalleryViewState();
+}
+
+class _MediaGalleryViewState extends State<_MediaGalleryView> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Swipeable media
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.mediaList.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final mediaItem = widget.mediaList[index];
+              final isVideo = (mediaItem.type ?? '').toLowerCase() == 'video';
+
+              if (isVideo) {
+                // Video with play button
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => VideoPlayerView(path: mediaItem.path),
+                      ),
+                    );
+                  },
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Center(
+                        child: Image(
+                          image: _providerForPath(mediaItem.path),
+                          fit: BoxFit.contain,
+                          errorBuilder: (ctx, err, st) => Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: Icon(
+                                Icons.videocam,
+                                size: 64,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow,
+                            size: 56,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                // Image with zoom
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: Image(
+                      image: _providerForPath(mediaItem.path),
+                      fit: BoxFit.contain,
+                      errorBuilder: (ctx, err, st) => const Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 64,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+
+          // Top bar with close button and counter
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.7),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Close button
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    // Counter
+                    if (widget.mediaList.length > 1)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          '${_currentIndex + 1} / ${widget.mediaList.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Page dots indicator
+          if (widget.mediaList.length > 1)
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      widget.mediaList.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentIndex == index ? 8 : 6,
+                        height: _currentIndex == index ? 8 : 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentIndex == index
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 // Helper: extract basename from a path or URL
