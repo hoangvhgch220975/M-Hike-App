@@ -17,6 +17,12 @@ class ObservationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1F2937);
+    final subtextColor = isDark ? Colors.grey[400] : Colors.grey.shade700;
+    final footerColor = isDark ? Colors.grey[500] : Colors.grey.shade500;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -24,13 +30,15 @@ class ObservationItem extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         width: MediaQuery.of(context).size.width * 0.85,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               blurRadius: 12,
-              offset: Offset(0, 4),
-              color: Color.fromARGB(20, 0, 0, 0),
+              offset: const Offset(0, 4),
+              color: isDark
+                ? const Color.fromARGB(40, 0, 0, 0)
+                : const Color.fromARGB(20, 0, 0, 0),
             ),
           ],
         ),
@@ -40,7 +48,7 @@ class ObservationItem extends StatelessWidget {
             // Top row: caption and metadata
             Text(
               observation.caption.isNotEmpty ? observation.caption : 'Observation',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Theme.of(context).textTheme.titleMedium?.color),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -50,7 +58,7 @@ class ObservationItem extends StatelessWidget {
             // Full Content
             Text(
               observation.content,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4),
+              style: TextStyle(fontSize: 14, color: subtextColor, height: 1.4),
             ),
 
             const SizedBox(height: 12),
@@ -111,9 +119,9 @@ class ObservationItem extends StatelessWidget {
             // Footer: timestamp and media count (IDs removed)
             Row(
               children: [
-                Text(observation.time, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                Text(observation.time, style: TextStyle(fontSize: 12, color: footerColor)),
                 const Spacer(),
-                Text('${observation.media.length} media', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                Text('${observation.media.length} media', style: TextStyle(fontSize: 12, color: footerColor)),
               ],
             ),
           ],
@@ -210,9 +218,8 @@ class _ObservationListForHikeState extends State<ObservationListForHike> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
-    if (_error != null) return SizedBox(height: 200, child: Center(child: Text('Failed to load observations')));
-    if (_observations.isEmpty) return const SizedBox(height: 200, child: Center(child: Text('No observations')));
+    final theme = Theme.of(context);
+
 
     final display = widget.limit != null ? _observations.take(widget.limit!).toList() : _observations;
 

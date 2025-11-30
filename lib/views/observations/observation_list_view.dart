@@ -48,15 +48,19 @@ class _ObservationListViewState extends State<ObservationListView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xfff5f5f5),
+        backgroundColor: theme.scaffoldBackgroundColor,
         automaticallyImplyLeading: true,
-        title: const Text(
+        title: Text(
           'All Observations',
-          style: TextStyle(
-            color: Color(0xff2d572c),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ) ?? const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
@@ -66,7 +70,12 @@ class _ObservationListViewState extends State<ObservationListView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : (_error != null
-              ? Center(child: Text('Failed to load observations'))
+              ? Center(
+                  child: Text(
+                    'Failed to load observations',
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.separated(

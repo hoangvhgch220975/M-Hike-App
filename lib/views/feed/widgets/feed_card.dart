@@ -128,19 +128,24 @@ class _FeedCardState extends State<FeedCard> {
 
   @override
   Widget build(BuildContext context) {
-    final c = _FeedColors();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     // Generate tags based on hike properties
     final tags = _generateTags();
+
+    // card and shadow adapted to current theme
+    final cardColor = theme.cardColor ?? (isDark ? const Color(0xFF1E1E1E) : Colors.white);
+    final shadowColor = Colors.black.withOpacity(isDark ? 0.5 : 0.08);
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12),
+            BoxShadow(color: shadowColor, blurRadius: 12),
           ],
         ),
         child: Column(
@@ -170,7 +175,7 @@ class _FeedCardState extends State<FeedCard> {
                       decoration: BoxDecoration(
                         color: _isRemarkable
                             ? const Color(0xFFFFD700)
-                            : Colors.white.withOpacity(0.9),
+                            : (theme.colorScheme.surface.withOpacity(0.9)),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
@@ -184,7 +189,7 @@ class _FeedCardState extends State<FeedCard> {
                         _isRemarkable ? Icons.star : Icons.star_border,
                         color: _isRemarkable
                             ? Colors.white
-                            : const Color(0xFF6B7280),
+                            : (theme.iconTheme.color ?? const Color(0xFF6B7280)),
                         size: 24,
                       ),
                     ),
@@ -201,26 +206,26 @@ class _FeedCardState extends State<FeedCard> {
                 children: [
                   Text(
                     widget.hike.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
-                    ),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ) ??
+                        const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 6),
 
-                  _iconText(Icons.location_on, widget.hike.location),
+                  _iconText(Icons.location_on, widget.hike.location, theme),
                   const SizedBox(height: 4),
-                  _iconText(Icons.calendar_today, widget.hike.date),
+                  _iconText(Icons.calendar_today, widget.hike.date, theme),
                   const SizedBox(height: 4),
-                  _iconText(Icons.straighten, '${widget.hike.length.toStringAsFixed(1)} km'),
+                  _iconText(Icons.straighten, '${widget.hike.length.toStringAsFixed(1)} km', theme),
 
                   const SizedBox(height: 12),
 
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: tags.map((t) => _tagChip(t)).toList(),
+                    children: tags.map((t) => _tagChip(t, theme)).toList(),
                   ),
                 ],
               ),
@@ -269,24 +274,27 @@ class _FeedCardState extends State<FeedCard> {
     return tags;
   }
 
-  Widget _iconText(IconData icon, String text) {
+  Widget _iconText(IconData icon, String text, ThemeData theme) {
+    final iconColor = theme.iconTheme.color?.withOpacity(0.8) ?? Colors.grey[600];
+    final textColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.9) ?? Colors.grey[600];
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey[600]),
+        Icon(icon, size: 16, color: iconColor),
         const SizedBox(width: 4),
         Text(
           text,
-          style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
         ),
       ],
     );
   }
 
-  Widget _tagChip(FeedTag tag) {
+  Widget _tagChip(FeedTag tag, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: tag.color.withOpacity(0.15),
+        color: tag.color.withOpacity(isDark ? 0.22 : 0.12),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -319,12 +327,3 @@ class FeedTag {
   const FeedTag(this.label, this.color, [this.icon]);
 }
 
-// COLOR PALETTE
-class _FeedColors {
-  final Color forestGreen = const Color(0xFF225749);
-  final Color skyBlue = const Color(0xFF89CFF0);
-  final Color earthBrown = const Color(0xFFA1887F);
-  final Color lightGrey = const Color(0xFFF5F5F5);
-  final Color darkGrey = const Color(0xFF6B7280);
-  final Color darkText = const Color(0xFF1F2937);
-}

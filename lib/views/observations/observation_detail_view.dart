@@ -18,11 +18,20 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
   bool _isLoading = true;
   Observation? _observation;
   String? _error;
+  late PageController _pageController;
+  int _currentMediaIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _loadObservation();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadObservation() async {
@@ -72,6 +81,7 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (_isLoading) {
       return Scaffold(body: const Center(child: CircularProgressIndicator()));
@@ -85,21 +95,138 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
       return Scaffold(body: Center(child: Text('Observation not found')));
     }
 
-    // Use the first media item as banner if available
-    final bannerPath = _observation!.media.isNotEmpty ? _observation!.media.first.path : 'lib/assets/images/imageholder.png';
-    final bannerProvider = _providerForPath(bannerPath);
+    // Build media list for PageView
+    final mediaList = _observation!.media.isNotEmpty
+        ? _observation!.media
+        : [MediaItem(id: null, observationId: widget.observationId, path: 'lib/assets/images/imageholder.png', type: 'image')];
 
     return Scaffold(
-      backgroundColor: const Color(0xffF5F5F5),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
+          // Swipeable media gallery
           Positioned.fill(
-            child: Image(
-              image: bannerProvider,
-              fit: BoxFit.cover,
-              errorBuilder: (ctx, err, st) => Image.asset('lib/assets/images/imageholder.png', fit: BoxFit.cover),
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: mediaList.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentMediaIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                final mediaItem = mediaList[index];
+                final isVideo = (mediaItem.type ?? '').toLowerCase() == 'video';
+
+                if (isVideo) {
+                  // Video thumbnail with play button overlay
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => VideoPlayerView(path: mediaItem.path),
+                        ),
+                      );
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image(
+                          image: _providerForPath(mediaItem.path),
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, st) => Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: Icon(Icons.videocam, size: 64, color: Colors.white54),
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow,
+                              size: 48,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  // Image
+                  return GestureDetector(
+                    onTap: () => _showFullImage(mediaItem.path),
+                    child: Image(
+                      image: _providerForPath(mediaItem.path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, st) => Image.asset(
+                        'lib/assets/images/imageholder.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                }
+              },
             ),
           ),
+
+          // Media count indicator (top center)
+          if (mediaList.length > 1)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '${_currentMediaIndex + 1} / ${mediaList.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Page dots indicator (below media count)
+          if (mediaList.length > 1)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 50,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    mediaList.length,
+                    (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentMediaIndex == index ? 8 : 6,
+                      height: _currentMediaIndex == index ? 8 : 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentMediaIndex == index
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // Top close button
           Positioned(
@@ -110,8 +237,13 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
               child: Container(
                 height: 44,
                 width: 44,
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.32), shape: BoxShape.circle),
-                child: const Center(child: Icon(Icons.close, color: Colors.white)),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.25 : 0.32),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(Icons.close, color: isDark ? Colors.black : Colors.white),
+                ),
               ),
             ),
           ),
@@ -122,10 +254,10 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
               decoration: BoxDecoration(
-                color: const Color(0xffF5F5F5),
+                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xffF5F5F5),
                 borderRadius: const BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
                 boxShadow: [
-                  BoxShadow(blurRadius: 12, offset: const Offset(0, -2), color: Colors.black.withOpacity(0.12)),
+                  BoxShadow(blurRadius: 12, offset: const Offset(0, -2), color: Colors.black.withOpacity(isDark ? 0.5 : 0.12)),
                 ],
               ),
               child: Column(
@@ -134,16 +266,22 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
                 children: [
                   Text(
                     _observation!.caption.isNotEmpty ? _observation!.caption : 'Observation',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xff5C4033)),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ) ?? const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _observation!.content,
-                    style: TextStyle(color: const Color(0xff5C4033).withOpacity(0.85), fontSize: 15, height: 1.5),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: 15,
+                      height: 1.5,
+                    ) ?? const TextStyle(fontSize: 15, height: 1.5),
                   ),
                   const SizedBox(height: 16),
 
-                  // Thumbnails: show all media as horizontal list
+                  // Thumbnails: show all media as horizontal list with current selection indicator
                   if (_observation!.media.isNotEmpty) ...[
                     SizedBox(
                       height: 80,
@@ -155,28 +293,55 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
                           final MediaItem m = _observation!.media[i];
                           final provider = _providerForPath(m.path);
                           final isVideo = (m.type ?? '').toLowerCase() == 'video';
+                          final isSelected = i == _currentMediaIndex;
+
                           return GestureDetector(
                             onTap: () {
-                              if (isVideo) {
-                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => VideoPlayerView(path: m.path)));
-                              } else {
-                                _showFullImage(m.path);
-                              }
+                              // Jump to this media in the PageView
+                              _pageController.animateToPage(
+                                i,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
                             },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Image(
-                                    image: provider,
-                                    width: 100,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (c, e, s) => Container(color: theme.cardColor, width: 100, height: 80, child: const Icon(Icons.broken_image)),
-                                  ),
-                                  if (isVideo) const Icon(Icons.play_circle_outline, color: Colors.white, size: 36),
-                                ],
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: isSelected
+                                    ? Border.all(color: theme.primaryColor, width: 3)
+                                    : null,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Image(
+                                      image: provider,
+                                      width: 100,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Container(
+                                        color: theme.cardColor,
+                                        width: 100,
+                                        height: 80,
+                                        child: const Icon(Icons.broken_image),
+                                      ),
+                                    ),
+                                    if (isVideo)
+                                      const Icon(
+                                        Icons.play_circle_outline,
+                                        color: Colors.white,
+                                        size: 36,
+                                      ),
+                                    if (!isSelected)
+                                      Container(
+                                        width: 100,
+                                        height: 80,
+                                        color: Colors.black.withOpacity(0.3),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -192,7 +357,10 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
                       Expanded(
                         child: Container(
                           height: 56,
-                          decoration: BoxDecoration(color: const Color(0xff2F4F2F).withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(
+                            color: theme.primaryColor.withOpacity(isDark ? 0.2 : 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           child: TextButton.icon(
                             onPressed: () async {
                               if (_observation?.id == null) return;
@@ -207,8 +375,8 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
                                 Navigator.of(context).pop(true);
                               }
                             },
-                            icon: const Icon(Icons.edit, color: Color(0xff2F4F2F)),
-                            label: const Text('Edit', style: TextStyle(color: Color(0xff2F4F2F))),
+                            icon: Icon(Icons.edit, color: theme.primaryColor),
+                            label: Text('Edit', style: TextStyle(color: theme.primaryColor)),
                           ),
                         ),
                       ),
@@ -217,7 +385,10 @@ class _ObservationDetailViewState extends State<ObservationDetailView> {
                       Expanded(
                         child: Container(
                           height: 56,
-                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.06), borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(isDark ? 0.12 : 0.06),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           child: TextButton.icon(
                             onPressed: () async {
                               if (_observation?.id == null) return;

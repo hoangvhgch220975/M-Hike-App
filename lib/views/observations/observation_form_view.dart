@@ -220,6 +220,8 @@ class _ObservationFormViewState extends State<ObservationFormView> {
   }
 
   Widget _buildMediaGrid() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final demoImages = <String>[]; // keep demo removed when real data present
 
     // Build combined list: existing MediaItem objects followed by new media maps
@@ -237,15 +239,28 @@ class _ObservationFormViewState extends State<ObservationFormView> {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xffd1d5db), width: 2),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : const Color(0xffd1d5db),
+                width: 2,
+              ),
             ),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.add_photo_alternate, color: Color(0xff9ca3af)),
-                  SizedBox(height: 4),
-                  Text('Add Media', style: TextStyle(fontSize: 11, color: Color(0xff6b7280), fontWeight: FontWeight.w500)),
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate,
+                    color: isDark ? Colors.grey.shade500 : const Color(0xff9ca3af),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Add Media',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade400 : const Color(0xff6b7280),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -284,7 +299,7 @@ class _ObservationFormViewState extends State<ObservationFormView> {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
+                color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
@@ -292,7 +307,7 @@ class _ObservationFormViewState extends State<ObservationFormView> {
                     ? Image.file(File(path), fit: BoxFit.cover, width: double.infinity, height: double.infinity)
                     : // For video files show a simple placeholder with a play icon.
                     Container(
-                        color: Colors.black,
+                        color: isDark ? const Color(0xFF1A1A1A) : Colors.black,
                         child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -327,8 +342,17 @@ class _ObservationFormViewState extends State<ObservationFormView> {
                 child: Container(
                   height: 28,
                   width: 28,
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                  child: const Center(child: Icon(Icons.close, size: 18, color: Colors.white)),
+                  decoration: BoxDecoration(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: isDark ? Colors.black : Colors.white,
+                    ),
+                  ),
                 ),
               ),
             )
@@ -410,17 +434,20 @@ class _ObservationFormViewState extends State<ObservationFormView> {
     if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xfff5f5f5),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xfff5f5f5),
+        backgroundColor: theme.scaffoldBackgroundColor,
         automaticallyImplyLeading: true,
         title: Text(
           _observationId == null ? 'New Observation' : 'Edit Observation',
-          style: const TextStyle(
-            color: Color(0xff2d572c),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ) ?? const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
@@ -438,9 +465,33 @@ class _ObservationFormViewState extends State<ObservationFormView> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Caption', style: TextStyle(fontSize: 14, color: Color(0xff6b7280), fontWeight: FontWeight.w500)),
+                Text(
+                  'Caption',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: _captionCtrl, decoration: InputDecoration(hintText: 'A brief title for your observation', filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.all(16), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xffd1d5db))), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xff2d572c))))),
+                TextField(
+                  controller: _captionCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'A brief title for your observation',
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                    contentPadding: const EdgeInsets.all(16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: isDark ? Colors.grey.shade700 : const Color(0xffd1d5db),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: theme.primaryColor),
+                    ),
+                  ),
+                ),
               ],
             ),
 
@@ -450,15 +501,46 @@ class _ObservationFormViewState extends State<ObservationFormView> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Content', style: TextStyle(fontSize: 14, color: Color(0xff6b7280), fontWeight: FontWeight.w500)),
+                Text(
+                  'Content',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: _contentCtrl, maxLines: 6, decoration: InputDecoration(hintText: 'Describe what you saw, heard, or felt...', filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.all(16), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xffd1d5db))), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xff2d572c))))),
+                TextField(
+                  controller: _contentCtrl,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    hintText: 'Describe what you saw, heard, or felt...',
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                    contentPadding: const EdgeInsets.all(16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: isDark ? Colors.grey.shade700 : const Color(0xffd1d5db),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: theme.primaryColor),
+                    ),
+                  ),
+                ),
               ],
             ),
 
             const SizedBox(height: 32),
 
-            const Text('Media', style: TextStyle(fontSize: 14, color: Color(0xff6b7280), fontWeight: FontWeight.w500)),
+            Text(
+              'Media',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 12),
 
             _buildMediaGrid(),
@@ -548,12 +630,12 @@ class _ObservationFormViewState extends State<ObservationFormView> {
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          color: const Color(0xfff5f5f5),
+          color: theme.scaffoldBackgroundColor,
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff2d572c),
+                backgroundColor: theme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 4,
