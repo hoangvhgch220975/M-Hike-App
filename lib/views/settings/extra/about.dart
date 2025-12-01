@@ -172,7 +172,7 @@ class AboutView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1C1C1E),
+                      color: Colors.grey,
                     ),
                   ),
                   const SizedBox(height: 8),

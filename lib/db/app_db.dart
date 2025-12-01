@@ -19,13 +19,14 @@ class AppDatabase {
 
   // Tên Database và Version
   final String _dbName = 'm_hike_hybrid_app.db';
-  // Bump DB version so we can run migrations that add new columns (e.g., hasParking)
-  final int _dbVersion = 2;
+  // Bump DB version to 3 for estimatedDuration and weather table
+  final int _dbVersion = 3;
 
   // Tên Bảng
   final String _hikeTable = 'hikes';
   final String _observationTable = 'observations';
   final String _mediaTable = 'media';
+  final String _weatherTable = 'weather_forecasts';
 
   // Getter cho Database instance
   // Nếu database đã tồn tại (_database != null) thì trả về, ngược lại khởi tạo
@@ -59,9 +60,34 @@ class AppDatabase {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  // Xử lý nâng cấp database: thêm cột hasParking khi nâng version từ 1 lên 2
+  // Xử lý nâng cấp database
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // No runtime upgrade logic required; the hasParking migration has been applied.
+    if (oldVersion < 2) {
+      // Add hasParking column
+      await db.execute('ALTER TABLE $_hikeTable ADD COLUMN hasParking INTEGER NOT NULL DEFAULT 0');
+    }
+
+    if (oldVersion < 3) {
+      // Add estimatedDuration column to hikes table
+      await db.execute('ALTER TABLE $_hikeTable ADD COLUMN estimatedDuration INTEGER NOT NULL DEFAULT 1');
+
+      // Create weather_forecasts table
+      await db.execute('''
+        CREATE TABLE $_weatherTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          hikeId INTEGER NOT NULL,
+          temperature REAL NOT NULL,
+          condition TEXT NOT NULL,
+          description TEXT NOT NULL,
+          humidity REAL NOT NULL,
+          windSpeed REAL NOT NULL,
+          icon TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          forecastDate TEXT NOT NULL,
+          FOREIGN KEY (hikeId) REFERENCES $_hikeTable (id) ON DELETE CASCADE
+        )
+      ''');
+    }
   }
 
   // Tạo các bảng khi database được tạo lần đầu
@@ -78,7 +104,8 @@ class AppDatabase {
         description TEXT,
         isComplete INTEGER NOT NULL DEFAULT 0,
         isRemarkable INTEGER NOT NULL DEFAULT 0,
-        hasParking INTEGER NOT NULL DEFAULT 0
+        hasParking INTEGER NOT NULL DEFAULT 0,
+        estimatedDuration INTEGER NOT NULL DEFAULT 1
       )
     ''');
 
@@ -102,6 +129,23 @@ class AppDatabase {
         path TEXT NOT NULL,
         type TEXT NOT NULL,
         FOREIGN KEY (observationId) REFERENCES $_observationTable (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // 4. Bảng WEATHER_FORECASTS (Liên kết với HIKES)
+    await db.execute('''
+      CREATE TABLE $_weatherTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hikeId INTEGER NOT NULL,
+        temperature REAL NOT NULL,
+        condition TEXT NOT NULL,
+        description TEXT NOT NULL,
+        humidity REAL NOT NULL,
+        windSpeed REAL NOT NULL,
+        icon TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        forecastDate TEXT NOT NULL,
+        FOREIGN KEY (hikeId) REFERENCES $_hikeTable (id) ON DELETE CASCADE
       )
     ''');
   }
@@ -592,6 +636,102 @@ class AppDatabase {
    }
 
    // ============================================================================
+   // MARK: - CRUD Weather Forecasts (Feature 9)
+   // ============================================================================
+
+   /// Thêm một dự báo thời tiết vào bảng weather_forecasts
+   Future<int> insertWeatherForecast(Map<String, dynamic> weatherData) async {
+     Database db = await instance.database;
+     return await db.insert(_weatherTable, weatherData);
+   }
+
+   /// Thêm nhiều dự báo thời tiết cùng lúc (cho forecast nhiều ngày)
+   Future<void> insertWeatherForecasts(List<Map<String, dynamic>> forecasts) async {
+     Database db = await instance.database;
+     await db.transaction((txn) async {
+       for (final forecast in forecasts) {
+         await txn.insert(_weatherTable, forecast);
+       }
+     });
+   }
+
+   /// Get all weather forecasts for a hike
+   /// Lấy tất cả dự báo thời tiết cho một hike
+   Future<List<Map<String, dynamic>>> getWeatherForecastsByHike(int hikeId) async {
+     if (hikeId <= 0) {
+       return [];
+     }
+
+     try {
+       Database db = await instance.database;
+       final List<Map<String, dynamic>> maps = await db.query(
+         _weatherTable,
+         where: 'hikeId = ?',
+         whereArgs: [hikeId],
+         orderBy: 'forecastDate ASC',
+       );
+       return maps;
+     } catch (e) {
+       return [];
+     }
+   }
+
+   /// Lấy dự báo thời tiết cho một ngày cụ thể của hike
+   Future<Map<String, dynamic>?> getWeatherForecastByDate(int hikeId, String date) async {
+     Database db = await instance.database;
+     final List<Map<String, dynamic>> maps = await db.query(
+       _weatherTable,
+       where: 'hikeId = ? AND forecastDate = ?',
+       whereArgs: [hikeId, date],
+       limit: 1,
+     );
+
+     if (maps.isNotEmpty) {
+       return maps.first;
+     }
+     return null;
+   }
+
+   /// Xóa tất cả dự báo thời tiết của một hike
+   Future<int> deleteWeatherForecastsByHike(int hikeId) async {
+     Database db = await instance.database;
+     return await db.delete(
+       _weatherTable,
+       where: 'hikeId = ?',
+       whereArgs: [hikeId],
+     );
+   }
+
+   /// Xóa dự báo thời tiết cũ (quá 7 ngày)
+   Future<int> deleteOldWeatherForecasts() async {
+     Database db = await instance.database;
+     final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+     return await db.delete(
+       _weatherTable,
+       where: 'timestamp < ?',
+       whereArgs: [sevenDaysAgo],
+     );
+   }
+
+   /// Cập nhật dự báo thời tiết cho một hike (xóa cũ và thêm mới)
+   Future<void> updateWeatherForecastsForHike(int hikeId, List<Map<String, dynamic>> forecasts) async {
+     Database db = await instance.database;
+     await db.transaction((txn) async {
+       // Xóa dự báo cũ
+       await txn.delete(
+         _weatherTable,
+         where: 'hikeId = ?',
+         whereArgs: [hikeId],
+       );
+
+       // Thêm dự báo mới
+       for (final forecast in forecasts) {
+         await txn.insert(_weatherTable, forecast);
+       }
+     });
+   }
+
+   // ============================================================================
    // MARK: - UTILITY METHODS
    // ============================================================================
 
@@ -599,6 +739,7 @@ class AppDatabase {
    /// Xóa tất cả dữ liệu (dùng cho testing hoặc reset app)
    Future<void> clearAllData() async {
      Database db = await instance.database;
+     await db.delete(_weatherTable);
      await db.delete(_mediaTable);
      await db.delete(_observationTable);
      await db.delete(_hikeTable);

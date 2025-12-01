@@ -4,8 +4,10 @@ import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../models/hike.dart';
+import '../../models/weather_data.dart';
 import '../../db/app_db.dart';
 import '../../viewmodels/hike_viewmodel.dart';
+import '../../viewmodels/weather_viewmodel.dart';
 import 'hike_form_view.dart';
 import '../observations/no_observation_card.dart';
 import '../observations/observation_item.dart';
@@ -47,6 +49,16 @@ class _HikeDetailViewState extends State<HikeDetailView> {
       _hike = h;
       _isLoading = false;
     });
+
+    // Load stored weather forecasts if hike exists and has valid id
+    if (h != null && h.id != null && mounted) {
+      try {
+        final weatherVM = Provider.of<WeatherViewModel>(context, listen: false);
+        await weatherVM.loadStoredForecasts(h.id!);
+      } catch (e) {
+        debugPrint('Error loading weather forecasts: $e');
+      }
+    }
   }
 
   // Choose the best image to show in the banner:
@@ -332,6 +344,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                         date: _hike!.date,
                         length: "${_hike!.length.toStringAsFixed(1)} km",
                         difficulty: _hike!.difficulty,
+                        duration: "${_hike!.estimatedDuration ?? 1} ${(_hike!.estimatedDuration ?? 1) == 1 ? 'day' : 'days'}",
                         parking: _hike!.hasParking ? 'Yes' : 'No',
                       ),
 
@@ -364,6 +377,11 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                           _pill(const Color(0xFFFFD700), Icons.star, 'Remarkable', active: _hike!.isRemarkable),
                         ],
                       ),
+
+                      const SizedBox(height: 24),
+
+                      // Weather Forecast Section
+                      _buildWeatherForecastSection(primary, theme, secondaryText),
 
                       const SizedBox(height: 24),
 
@@ -426,7 +444,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                         )
                       else if (_hike!.observations.isEmpty)
                         NoObservationCard(onAdd: _onAddObservation)
-                      else ...[
+                      else if (_hike!.id != null) ...[
                           ObservationListForHike(
                             hikeId: _hike!.id!,
                             limit: 5,
@@ -455,7 +473,22 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                           ],
 
                           const SizedBox(height: 120),
-                        ],
+                        ]
+                      else
+                        // Hike exists but has no ID (shouldn't happen, but handle gracefully)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            'Unable to load observations.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.hintColor,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -473,6 +506,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         required String length,
         required String difficulty,
         required String parking,
+        required String duration,
       }) {
     Widget tile(IconData icon, String label, String value) {
       return Container(
@@ -522,6 +556,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         tile(Icons.calendar_month, "Date", date),
         tile(Icons.straighten, "Length", length),
         tile(Icons.trending_up, "Difficulty", difficulty),
+        tile(Icons.access_time, "Duration", duration),
         tile(Icons.local_parking, "Parking", parking),
       ],
     );
@@ -572,5 +607,414 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         ],
       ),
     );
+  }
+
+  Widget _buildWeatherForecastSection(Color primary, ThemeData theme, Color secondaryText) {
+    if (_hike == null) return const SizedBox.shrink();
+
+    return Consumer<WeatherViewModel>(
+      builder: (context, weatherVM, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Weather Forecast',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: secondaryText,
+                        ),
+                      ),
+                      if (weatherVM.forecastList.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _hike!.isComplete ? Icons.storage : Icons.cloud,
+                                size: 12,
+                                color: theme.hintColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _hike!.isComplete
+                                  ? 'Stored data'
+                                  : 'Live forecast',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.hintColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (!weatherVM.isLoading)
+                  IconButton(
+                    icon: Icon(Icons.refresh, color: primary),
+                    onPressed: () async {
+                      await _fetchWeatherForecast();
+                    },
+                    tooltip: _hike!.isComplete
+                      ? 'Load from database'
+                      : 'Refresh weather forecast',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (weatherVM.isLoading)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: CircularProgressIndicator(color: primary),
+                ),
+              )
+            else if (weatherVM.errorMessage != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      weatherVM.errorMessage!.contains('past') ||
+                      weatherVM.errorMessage!.contains('future') ||
+                      weatherVM.errorMessage!.contains('date')
+                        ? Icons.warning_amber_rounded
+                        : weatherVM.errorMessage!.contains('completed')
+                        ? Icons.info_outline
+                        : Icons.cloud_off,
+                      size: 40,
+                      color: Colors.orange.shade700
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      weatherVM.errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.orange.shade900),
+                    ),
+                    const SizedBox(height: 8),
+                    // Only show retry button if not a validation error
+                    if (!weatherVM.errorMessage!.contains('past') &&
+                        !weatherVM.errorMessage!.contains('future') &&
+                        !weatherVM.errorMessage!.contains('completed') &&
+                        !weatherVM.errorMessage!.contains('date'))
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await _fetchWeatherForecast();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                  ],
+                ),
+              )
+            else if (weatherVM.forecastList.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      _hike!.isComplete ? Icons.history : Icons.wb_sunny,
+                      size: 40,
+                      color: primary
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _hike!.isComplete
+                        ? 'No weather data stored for this completed hike'
+                        : 'No weather data available',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await _fetchWeatherForecast();
+                      },
+                      icon: Icon(_hike!.isComplete ? Icons.refresh : Icons.download),
+                      label: Text(_hike!.isComplete ? 'Load from Database' : 'Fetch Weather'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primary,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SizedBox(
+                height: 180,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: weatherVM.forecastList.length,
+                  itemBuilder: (context, index) {
+                    final forecast = weatherVM.forecastList[index];
+                    return _buildWeatherCard(forecast, primary);
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildWeatherCard(WeatherData weather, Color primary) {
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 6,
+            offset: Offset(0, 2),
+            color: Color(0x11000000),
+          )
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            _formatDate(weather.forecastDate),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).hintColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            weather.getEmoji(),
+            style: const TextStyle(fontSize: 32),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${weather.temperature.toStringAsFixed(0)}°C',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            weather.condition,
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).hintColor,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${months[date.month - 1]} ${date.day}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  Future<void> _fetchWeatherForecast() async {
+    if (_hike == null || _hike!.id == null) {
+      debugPrint('Cannot fetch weather: hike or hike.id is null');
+      return;
+    }
+
+    final weatherVM = Provider.of<WeatherViewModel>(context, listen: false);
+
+    try {
+      // Check if hike is completed - only load from database
+      // Kiểm tra nếu hike đã hoàn thành - chỉ đọc dữ liệu từ database
+      if (_hike!.isComplete) {
+        debugPrint('Hike is completed. Loading weather from database only.');
+        await weatherVM.loadStoredForecasts(_hike!.id!);
+
+        if (weatherVM.forecastList.isEmpty) {
+          weatherVM.errorMessage = 'No weather data stored for this completed hike.';
+          weatherVM.notifyListeners();
+        }
+        return;
+      }
+
+      // For planned hikes, fetch new forecast
+      // Đối với hike đang lên kế hoạch, lấy dự báo mới
+      final location = _hike!.location.trim();
+
+      if (location.isEmpty) {
+        weatherVM.errorMessage = 'Location is empty';
+        weatherVM.notifyListeners();
+        return;
+      }
+
+      // Parse hike date
+      // Phân tích ngày bắt đầu của hike
+      DateTime startDate;
+      try {
+        startDate = _parseHikeDate(_hike!.date);
+      } catch (e) {
+        weatherVM.errorMessage = 'Invalid date format';
+        weatherVM.notifyListeners();
+        return;
+      }
+
+      // Check if hike date is in the past
+      // Kiểm tra nếu ngày hike đã qua (không hợp lệ cho plan)
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final hikeDate = DateTime(startDate.year, startDate.month, startDate.day);
+
+      if (hikeDate.isBefore(today)) {
+        weatherVM.errorMessage =
+          '⚠️ Hike date is in the past (${_hike!.date}).\n'
+          'Weather forecast is only available for future dates.\n'
+          'Please update the hike date or mark this hike as completed.';
+        weatherVM.notifyListeners();
+        return;
+      }
+
+      // Check if hike date is too far in the future (API limitation: 5 days)
+      // Kiểm tra nếu ngày hike quá xa (giới hạn API: 5 ngày)
+      final maxForecastDate = today.add(const Duration(days: 5));
+      if (hikeDate.isAfter(maxForecastDate)) {
+        weatherVM.errorMessage =
+          '⚠️ Hike date is too far in the future (${_hike!.date}).\n'
+          'Weather forecast is only available for the next 5 days.\n'
+          'Please check again closer to the hike date.';
+        weatherVM.notifyListeners();
+        return;
+      }
+
+      // Check if location looks like coordinates (placeholder for future implementation)
+      // Kiểm tra nếu location là tọa độ (sẽ implement sau)
+      final coordPattern = RegExp(r'^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$');
+
+      if (coordPattern.hasMatch(location)) {
+        weatherVM.errorMessage = 'Coordinate input not yet supported. Please use city/place name.';
+        weatherVM.notifyListeners();
+        return;
+      }
+
+      // Fetch weather forecast starting from hike date
+      // Lấy dự báo thời tiết bắt đầu từ ngày hike
+      await weatherVM.fetchAndSaveWeatherForHikeByLocation(
+        _hike!.id!,
+        location,
+        startDate, // Use actual hike date, not today
+        _hike!.estimatedDuration ?? 1,
+      );
+
+    } catch (e) {
+      weatherVM.errorMessage = 'Failed to fetch weather: $e';
+      weatherVM.notifyListeners();
+    }
+  }
+
+  DateTime _parseHikeDate(String dateStr) {
+    try {
+      // Try format 1: "August 12, 2024" (Month name format)
+      final months = {
+        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+        'september': 9, 'october': 10, 'november': 11, 'december': 12,
+      };
+
+      final lowerStr = dateStr.toLowerCase();
+
+      // Check if it contains month name
+      if (lowerStr.contains(' ')) {
+        final parts = lowerStr.split(' ');
+        if (parts.length == 3) {
+          final month = months[parts[0]];
+          if (month != null) {
+            final day = int.parse(parts[1].replaceAll(',', ''));
+            final year = int.parse(parts[2]);
+            return DateTime(year, month, day);
+          }
+        }
+      }
+
+      // Try format 2: "YYYY-MM-DD" (ISO format)
+      if (dateStr.contains('-') && dateStr.length == 10) {
+        return DateTime.parse(dateStr);
+      }
+
+      // Try format 3: "D/M/YYYY" or "DD/MM/YYYY" or "M/D/YYYY" (Slash format)
+      if (dateStr.contains('/')) {
+        final parts = dateStr.split('/');
+        if (parts.length == 3) {
+          final firstNum = int.parse(parts[0]);
+          final secondNum = int.parse(parts[1]);
+          final year = int.parse(parts[2]);
+
+          // Determine if it's DD/MM/YYYY or MM/DD/YYYY
+          // If first number > 12, it must be DD/MM/YYYY
+          // If second number > 12, it must be MM/DD/YYYY
+          // Otherwise, assume DD/MM/YYYY (Vietnamese format)
+
+          if (firstNum > 12) {
+            // Must be DD/MM/YYYY
+            return DateTime(year, secondNum, firstNum);
+          } else if (secondNum > 12) {
+            // Must be MM/DD/YYYY
+            return DateTime(year, firstNum, secondNum);
+          } else {
+            // Ambiguous - assume DD/MM/YYYY (Vietnamese format)
+            // e.g., "3/5/2025" = May 3, 2025
+            return DateTime(year, secondNum, firstNum);
+          }
+        }
+      }
+
+      // Try format 4: "D.M.YYYY" or "DD.MM.YYYY" (Dot format)
+      if (dateStr.contains('.')) {
+        final parts = dateStr.split('.');
+        if (parts.length == 3) {
+          final day = int.parse(parts[0]);
+          final month = int.parse(parts[1]);
+          final year = int.parse(parts[2]);
+          return DateTime(year, month, day);
+        }
+      }
+
+    } catch (e) {
+      debugPrint('Error parsing date: $e');
+    }
+
+    // If all parsing fails, throw exception instead of returning DateTime.now()
+    throw FormatException('Unable to parse date: $dateStr');
   }
 }

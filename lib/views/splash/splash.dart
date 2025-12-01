@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome.dart';
+import '../shared/navbar.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -29,12 +31,20 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Chuyển sang màn hình welcome sau khi animation hoàn thành
-    _controller.addStatusListener((status) {
+    // Kiểm tra xem đã xem welcome screen chưa và chuyển màn hình phù hợp
+    _controller.addStatusListener((status) async {
       if (status == AnimationStatus.completed) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const WelcomeScreen(),
+        // Check if user has seen welcome screen before
+        final prefs = await SharedPreferences.getInstance();
+        final hasSeenWelcome = prefs.getBool('has_seen_welcome') ?? false;
+
+        if (!mounted) return;
+
+        if (hasSeenWelcome) {
+          // Đã xem welcome -> đi thẳng vào app
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const MainNavbar(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               // Fade transition với curve mượt mà hơn
               const fadeBegin = 0.0;
@@ -73,6 +83,50 @@ class _SplashScreenState extends State<SplashScreen>
             transitionDuration: const Duration(milliseconds: 900),
           ),
         );
+        } else {
+          // Chưa xem welcome -> hiển thị welcome screen
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const WelcomeScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                // Fade transition với curve mượt mà hơn
+                const fadeBegin = 0.0;
+                const fadeEnd = 1.0;
+                const fadeCurve = Curves.easeInOutCubic;
+
+                var fadeTween = Tween(begin: fadeBegin, end: fadeEnd).chain(CurveTween(curve: fadeCurve));
+                var fadeAnimation = animation.drive(fadeTween);
+
+                // Slide transition từ dưới lên nhẹ nhàng
+                const slideBegin = Offset(0.0, 0.08);
+                const slideEnd = Offset.zero;
+                const slideCurve = Curves.easeOutCubic;
+
+                var slideTween = Tween(begin: slideBegin, end: slideEnd).chain(CurveTween(curve: slideCurve));
+                var slideAnimation = animation.drive(slideTween);
+
+                // Scale transition nhẹ
+                const scaleBegin = 0.96;
+                const scaleEnd = 1.0;
+
+                var scaleTween = Tween(begin: scaleBegin, end: scaleEnd).chain(CurveTween(curve: fadeCurve));
+                var scaleAnimation = animation.drive(scaleTween);
+
+                return SlideTransition(
+                  position: slideAnimation,
+                  child: FadeTransition(
+                    opacity: fadeAnimation,
+                    child: ScaleTransition(
+                      scale: scaleAnimation,
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 900),
+            ),
+          );
+        }
       }
     });
   }

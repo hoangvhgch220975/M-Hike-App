@@ -19,9 +19,11 @@ class _HikeFormViewState extends State<HikeFormView> {
   final lengthController = TextEditingController();
   final locationController = TextEditingController();
   final descriptionController = TextEditingController();
+  final durationController = TextEditingController(text: '1');
 
   String difficulty = 'Moderate';
   bool parkingAvailable = true;
+  int estimatedDuration = 1;
 
   Color get primary => const Color(0xFF2C5E1A);
   Color get accent => const Color(0xFF87CEEB);
@@ -111,8 +113,10 @@ class _HikeFormViewState extends State<HikeFormView> {
       lengthController.text = h.length.toString();
       locationController.text = h.location;
       descriptionController.text = h.description ?? '';
+      durationController.text = (h.estimatedDuration ?? 1).toString();
       difficulty = h.difficulty;
       parkingAvailable = h.hasParking;
+      estimatedDuration = h.estimatedDuration ?? 1;
       // Populate the ViewModel with the existing hike values so saving doesn't overwrite flags
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final vm = Provider.of<HikeViewModel>(context, listen: false);
@@ -125,6 +129,7 @@ class _HikeFormViewState extends State<HikeFormView> {
         vm.isComplete = h.isComplete;
         vm.isRemarkable = h.isRemarkable;
         vm.hasParking = h.hasParking;
+        vm.estimatedDuration = h.estimatedDuration;
       });
     }
   }
@@ -205,6 +210,9 @@ class _HikeFormViewState extends State<HikeFormView> {
         const SizedBox(height: 16),
 
         _parkingSwitch(context),
+        const SizedBox(height: 16),
+
+        _durationField(context),
         const SizedBox(height: 16),
 
         _locationField(context),
@@ -361,6 +369,40 @@ class _HikeFormViewState extends State<HikeFormView> {
     );
   }
 
+  Widget _durationField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Estimated Duration (days)", style: _labelStyle(context)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: durationController,
+          keyboardType: TextInputType.number,
+          decoration: _inputDecoration(context, hint: "e.g., 1, 2, 3..."),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Duration is required';
+            }
+            final n = int.tryParse(v.trim());
+            if (n == null || n <= 0) {
+              return 'Please enter a valid number of days';
+            }
+            if (n > 5) {
+              return 'Duration cannot exceed 5 days (API limit)';
+            }
+            return null;
+          },
+          onChanged: (v) {
+            final n = int.tryParse(v.trim());
+            if (n != null && n > 0) {
+              setState(() => estimatedDuration = n);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _locationField(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,6 +468,8 @@ class _HikeFormViewState extends State<HikeFormView> {
         vm.description = descriptionController.text.trim();
         // Ensure the ViewModel receives the parking value from the form
         vm.hasParking = parkingAvailable;
+        // Parse and set estimated duration
+        vm.estimatedDuration = int.tryParse(durationController.text.trim()) ?? 1;
         // If we're editing an existing hike, preserve its completion/remarkable state
         // Don't set isComplete/isRemarkable here — saveHike() will fetch the
         // existing database record (if id != null) and preserve those flags.

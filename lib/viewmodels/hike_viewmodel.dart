@@ -17,6 +17,7 @@ class HikeViewModel extends ChangeNotifier {
   bool isComplete = false;
   bool isRemarkable = false;
   bool hasParking = false;
+  int? estimatedDuration;
 
   // Lists for different categories
   List<Hike> hikes = [];
@@ -111,6 +112,7 @@ class HikeViewModel extends ChangeNotifier {
     isComplete = false;
     isRemarkable = false;
     hasParking = false;
+    estimatedDuration = null;
     autoLength = false;
     manualLength = null;
     calculatedLength = null;
@@ -129,6 +131,7 @@ class HikeViewModel extends ChangeNotifier {
     isComplete = hike.isComplete;
     isRemarkable = hike.isRemarkable;
     hasParking = hike.hasParking;
+    estimatedDuration = hike.estimatedDuration;
     notifyListeners();
   }
 
@@ -167,6 +170,7 @@ class HikeViewModel extends ChangeNotifier {
         isComplete: preserveIsComplete,
         isRemarkable: preserveIsRemarkable,
         hasParking: hasParking,
+        estimatedDuration: estimatedDuration,
       );
 
       if (id == null) {

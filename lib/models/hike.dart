@@ -13,6 +13,7 @@ class Hike {
   bool isComplete; // Dùng để lọc Feed/Plan
   bool isRemarkable; // Dùng để lọc Remarkable
   bool hasParking; // New: Có chỗ đỗ xe hay không (yes/no)
+  int? estimatedDuration; // New: Số ngày dự kiến (duration in days) - nullable for backward compatibility
   List<Observation> observations; // Danh sách observations liên quan
 
   Hike({
@@ -26,6 +27,7 @@ class Hike {
     this.isComplete = false,
     this.isRemarkable = false,
     this.hasParking = false,
+    this.estimatedDuration, // Can be null for old records
     this.observations = const [], // Khởi tạo rỗng
   });
 
@@ -43,6 +45,7 @@ class Hike {
       'isComplete': isComplete ? 1 : 0,
       'isRemarkable': isRemarkable ? 1 : 0,
       'hasParking': hasParking ? 1 : 0,
+      'estimatedDuration': estimatedDuration ?? 1, // Default to 1 if null
     };
   }
 
@@ -68,6 +71,18 @@ class Hike {
       return s == '1' || s == 'true' || s == 'yes';
     }
 
+    // Parse estimatedDuration - return null if not present (for backward compatibility)
+    int? parsedDuration;
+    try {
+      if (map.containsKey('estimatedDuration') && map['estimatedDuration'] != null) {
+        parsedDuration = map['estimatedDuration'] is int
+          ? map['estimatedDuration'] as int
+          : int.tryParse(map['estimatedDuration'].toString());
+      }
+    } catch (_) {
+      parsedDuration = null;
+    }
+
     return Hike(
       id: map['id'] as int?,
       name: map['name'] as String,
@@ -80,6 +95,7 @@ class Hike {
       isComplete: parseBool(map['isComplete']),
       isRemarkable: parseBool(map['isRemarkable']),
       hasParking: parseBool(map['hasParking']),
+      estimatedDuration: parsedDuration,
       // observations sẽ được thêm vào sau khi lấy từ database
       observations: [],
     );

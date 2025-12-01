@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../shared/navbar.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -59,7 +60,13 @@ class WelcomeScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          // Lưu trạng thái đã xem welcome screen
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('has_seen_welcome', true);
+
+                          if (!context.mounted) return;
+
                           Navigator.of(context).pushReplacement(
                             PageRouteBuilder(
                               pageBuilder: (context, animation, secondaryAnimation) => const MainNavbar(),
