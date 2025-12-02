@@ -33,71 +33,104 @@ class _MapPickerViewState extends State<MapPickerView> {
       _isGettingLocation = true;
     });
 
+    // Default location - Hanoi (Vị trí mặc định khi GPS fail)
+    const double defaultLat = 21.023989;
+    const double defaultLon = 105.790357;
+
     try {
       print('🌍 [FLUTTER] Getting current location from device...');
 
       // Get current position from device - Lấy vị trí từ thiết bị
       final position = await _locationService.getCurrentLocation();
 
+      double lat;
+      double lon;
+      String popupText;
+      String snackBarMessage;
+      Color snackBarColor;
+
       if (position != null) {
-        final lat = position.latitude;
-        final lon = position.longitude;
+        // GPS success - Lấy GPS thành công
+        lat = position.latitude;
+        lon = position.longitude;
+        popupText = '📍 Your Current Location (from device)';
+        snackBarMessage = '✅ Current location detected';
+        snackBarColor = const Color(0xFF2C5E1A);
 
-        print('✅ [FLUTTER] Got location: $lat, $lon');
-
-        // Send to map via JavaScript - Gửi vào map qua JavaScript
-        final jsCode = '''
-          (function() {
-            try {
-              // Set current location from Flutter - Đặt vị trí hiện tại từ Flutter
-              if (typeof startLatLng !== 'undefined') {
-                startLatLng = L.latLng($lat, $lon);
-                if (typeof startMarker !== 'undefined') {
-                  startMarker.setLatLng(startLatLng);
-                  map.setView(startLatLng, 15);
-                  startMarker.bindPopup('📍 Your Current Location (from device)').openPopup();
-                }
-                console.log('✅ Location set from Flutter:', $lat, $lon);
-              }
-            } catch (e) {
-              console.error('❌ Error setting location:', e);
-            }
-          })();
-        ''';
-
-        await _controller.runJavaScript(jsCode);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Current location detected'),
-              duration: Duration(seconds: 2),
-              backgroundColor: Color(0xFF2C5E1A),
-            ),
-          );
-        }
+        print('✅ [FLUTTER] Got GPS location: $lat, $lon');
       } else {
-        print('❌ [FLUTTER] Could not get location');
+        // GPS failed - Use default location - GPS thất bại, dùng vị trí mặc định
+        lat = defaultLat;
+        lon = defaultLon;
+        popupText = '📍 Default Location (Hanoi)';
+        snackBarMessage = '⚠️ Using default location. GPS not available.';
+        snackBarColor = Colors.orange;
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ Could not get current location. Please enable GPS.'),
-              duration: Duration(seconds: 3),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        print('⚠️ [FLUTTER] GPS failed. Using default location: $lat, $lon');
       }
-    } catch (e) {
-      print('❌ [FLUTTER] Error getting location: $e');
+
+      // Send to map via JavaScript - Gửi vào map qua JavaScript
+      final jsCode = '''
+        (function() {
+          try {
+            // Set location from Flutter - Đặt vị trí từ Flutter
+            if (typeof startLatLng !== 'undefined') {
+              startLatLng = L.latLng($lat, $lon);
+              if (typeof startMarker !== 'undefined') {
+                startMarker.setLatLng(startLatLng);
+                map.setView(startLatLng, 15);
+                startMarker.bindPopup('$popupText').openPopup();
+              }
+              console.log('✅ Location set from Flutter:', $lat, $lon);
+            }
+          } catch (e) {
+            console.error('❌ Error setting location:', e);
+          }
+        })();
+      ''';
+
+      await _controller.runJavaScript(jsCode);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text(snackBarMessage),
+            duration: const Duration(seconds: 2),
+            backgroundColor: snackBarColor,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ [FLUTTER] Error getting location: $e');
+      print('⚠️ [FLUTTER] Falling back to default location');
+
+      // Exception - Fall back to default location - Lỗi exception, dùng vị trí mặc định
+      final jsCode = '''
+        (function() {
+          try {
+            if (typeof startLatLng !== 'undefined') {
+              startLatLng = L.latLng($defaultLat, $defaultLon);
+              if (typeof startMarker !== 'undefined') {
+                startMarker.setLatLng(startLatLng);
+                map.setView(startLatLng, 15);
+                startMarker.bindPopup('📍 Default Location (Hanoi)').openPopup();
+              }
+              console.log('✅ Default location set:', $defaultLat, $defaultLon);
+            }
+          } catch (e) {
+            console.error('❌ Error setting default location:', e);
+          }
+        })();
+      ''';
+
+      await _controller.runJavaScript(jsCode);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Using default location. Error: ${e.toString()}'),
             duration: const Duration(seconds: 3),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.orange,
           ),
         );
       }
@@ -165,6 +198,12 @@ class _MapPickerViewState extends State<MapPickerView> {
             setState(() {
               _isLoading = false;
             });
+
+            // Get current location from device and send to map - Lấy vị trí hiện tại và gửi vào map
+            // Delay to ensure map JavaScript is fully loaded
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              _getCurrentLocationAndSendToMap();
+            });
           },
           onWebResourceError: (WebResourceError error) {
             print('Web resource error: ${error.description}');
@@ -193,9 +232,11 @@ class _MapPickerViewState extends State<MapPickerView> {
                 builder: (context) => AlertDialog(
                   title: const Text('How to use'),
                   content: const Text(
-                    '1. Search for a location using the search bar\n'
-                    '2. Or tap anywhere on the map to pick a location\n'
-                    '3. The location will be automatically saved',
+                    '1. App will auto-detect your current location\n'
+                    '2. Or use the GPS button to refresh location\n'
+                    '3. Search for a location using the search bar\n'
+                    '4. Or tap anywhere on the map to pick\n'
+                    '5. Tap confirm button to save location',
                   ),
                   actions: [
                     TextButton(
@@ -212,12 +253,35 @@ class _MapPickerViewState extends State<MapPickerView> {
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
+
+          // Loading indicator - Hiển thị khi đang load map
           if (_isLoading)
             const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2C5E1A)),
               ),
             ),
+
+          // Floating GPS button - Nút GPS nổi để refresh vị trí
+          Positioned(
+            bottom: 20,
+            left: 20,
+            child: FloatingActionButton(
+              heroTag: 'gps_button',
+              onPressed: _isGettingLocation ? null : _getCurrentLocationAndSendToMap,
+              backgroundColor: const Color(0xFF2C5E1A),
+              child: _isGettingLocation
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.my_location, color: Colors.white),
+            ),
+          ),
         ],
       ),
     );

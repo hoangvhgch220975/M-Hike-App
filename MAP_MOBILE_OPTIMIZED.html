@@ -353,8 +353,8 @@
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
-  // Default start location (Hanoi)
-  let startLatLng = L.latLng(21.028511, 105.804817);
+  // Default start location (Hanoi) - Vị trí mặc định
+  let startLatLng = L.latLng(21.023989, 105.790357);
   let isGettingCurrentLocation = false;
 
   const map = L.map('map', {
@@ -472,16 +472,12 @@
     );
   }
 
-  // Try to get current location on load - silent fail - Thử lấy vị trí khi load (không báo lỗi)
-  // Only try if not in iframe (when embedded in Flutter WebView)
-  if (window.self === window.top) {
-    setTimeout(getCurrentLocation, 1000);
-  } else {
-    // In WebView, wait for user to click button - Trong WebView, đợi user click
-    console.log('Running in WebView - GPS on demand only');
-  }
+  // DO NOT auto-request GPS - Flutter will handle it - KHÔNG tự động request GPS
+  // Flutter app will get location and send via JavaScript injection
+  // Map chỉ nhận location từ Flutter, không tự lấy
+  console.log('Map loaded - Waiting for location from Flutter app');
 
-  // Current location button
+  // Keep GPS button for standalone browser testing only - Giữ nút GPS chỉ để test trên browser
   document.getElementById('currentLocationBtn').onclick = getCurrentLocation;
 
   function updateInfoPanel(latlng, name) {

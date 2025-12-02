@@ -458,13 +458,29 @@ class _HikeFormViewState extends State<HikeFormView> {
             color: isMapLocation ? Colors.grey : primaryText(context),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
+        // Map picker button - Nút chọn vị trí trên map
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isMapLocation
+                ? [primary.withOpacity(0.1), accent.withOpacity(0.1)]
+                : [primary.withOpacity(0.05), accent.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isMapLocation ? primary : borderColor(context),
+              width: isMapLocation ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              // Main map picker button
+              InkWell(
+                onTap: () async {
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -506,49 +522,126 @@ class _HikeFormViewState extends State<HikeFormView> {
                     }
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accent.withOpacity(0.2),
-                  foregroundColor: accent,
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Icon container with gradient background
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primary, primary.withOpacity(0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.map_outlined,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Text content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isMapLocation
+                                ? "Location Selected"
+                                : "Pick Location on Map",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: primaryText(context),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isMapLocation
+                                ? "Tap to change location"
+                                : "Choose location & calculate distance",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: secondaryText(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Arrow or checkmark icon
+                      Icon(
+                        isMapLocation ? Icons.check_circle : Icons.arrow_forward_ios,
+                        color: isMapLocation ? primary : Colors.grey.shade400,
+                        size: isMapLocation ? 28 : 20,
+                      ),
+                    ],
                   ),
                 ),
-                icon: const Icon(Icons.map),
-                label: const Text(
-                  "Pick on map",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
               ),
-            ),
-            if (isMapLocation) ...[
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    locationController.clear();
-                    lengthController.clear();
-                  });
-                  final vm = Provider.of<HikeViewModel>(context, listen: false);
-                  vm.location = '';
-                  vm.latitude = null;
-                  vm.longitude = null;
-                  vm.isMapPicked = false;
-                  vm.length = 0.0;
-                  vm.isLengthFromMap = false;
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withOpacity(0.2),
-                  foregroundColor: Colors.red,
-                  minimumSize: const Size(48, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+
+              // Clear button when location is selected
+              if (isMapLocation) ...[
+                Divider(
+                  height: 1,
+                  color: borderColor(context).withOpacity(0.5),
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      locationController.clear();
+                      lengthController.clear();
+                    });
+                    final vm = Provider.of<HikeViewModel>(context, listen: false);
+                    vm.location = '';
+                    vm.latitude = null;
+                    vm.longitude = null;
+                    vm.isMapPicked = false;
+                    vm.length = 0.0;
+                    vm.isLengthFromMap = false;
+                  },
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.close,
+                          color: Colors.red.shade400,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Clear Map Selection",
+                          style: TextStyle(
+                            color: Colors.red.shade400,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: const Icon(Icons.close),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );
