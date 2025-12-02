@@ -135,15 +135,27 @@ class PlanCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(hike.name, style: theme.textTheme.titleMedium?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text(
+                          hike.name,
+                          style: theme.textTheme.titleMedium?.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
+                          maxLines: 2,
+                          overflow: TextOverflow.visible,
+                          softWrap: true,
+                        ),
                         const SizedBox(height: 4),
-                        Row(
+                        Wrap(
+                          spacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Text(hike.location, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w500)),
-                            const SizedBox(width: 6),
+                            Text(
+                              hike.location,
+                              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
                             Text('•', style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
-                            const SizedBox(width: 6),
-                            Text(hike.date, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w500)),
+                            Text(
+                              hike.date,
+                              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
                           ],
                         ),
                       ],
@@ -174,8 +186,9 @@ class PlanCard extends StatelessWidget {
               Text(
                 hike.description ?? 'No description available',
                 style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.5, color: theme.hintColor),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 3,
+                overflow: TextOverflow.visible,
+                softWrap: true,
               ),
 
               const SizedBox(height: 16),

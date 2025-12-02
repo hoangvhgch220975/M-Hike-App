@@ -14,6 +14,10 @@ class Hike {
   bool isRemarkable; // Dùng để lọc Remarkable
   bool hasParking; // New: Có chỗ đỗ xe hay không (yes/no)
   int? estimatedDuration; // New: Số ngày dự kiến (duration in days) - nullable for backward compatibility
+  double? latitude; // Latitude from map picker
+  double? longitude; // Longitude from map picker
+  bool isMapPicked; // Flag to indicate if location was picked from map
+  bool isLengthFromMap; // Flag to indicate if length was calculated from map
   List<Observation> observations; // Danh sách observations liên quan
 
   Hike({
@@ -28,6 +32,10 @@ class Hike {
     this.isRemarkable = false,
     this.hasParking = false,
     this.estimatedDuration, // Can be null for old records
+    this.latitude,
+    this.longitude,
+    this.isMapPicked = false,
+    this.isLengthFromMap = false,
     this.observations = const [], // Khởi tạo rỗng
   });
 
@@ -46,6 +54,9 @@ class Hike {
       'isRemarkable': isRemarkable ? 1 : 0,
       'hasParking': hasParking ? 1 : 0,
       'estimatedDuration': estimatedDuration ?? 1, // Default to 1 if null
+      'latitude': latitude,
+      'longitude': longitude,
+      'isMapPicked': isMapPicked ? 1 : 0,
     };
   }
 
@@ -83,6 +94,25 @@ class Hike {
       parsedDuration = null;
     }
 
+    // Parse latitude/longitude - nullable for backward compatibility
+    double? parsedLat;
+    double? parsedLon;
+    try {
+      if (map.containsKey('latitude') && map['latitude'] != null) {
+        parsedLat = map['latitude'] is double
+            ? map['latitude'] as double
+            : double.tryParse(map['latitude'].toString());
+      }
+      if (map.containsKey('longitude') && map['longitude'] != null) {
+        parsedLon = map['longitude'] is double
+            ? map['longitude'] as double
+            : double.tryParse(map['longitude'].toString());
+      }
+    } catch (_) {
+      parsedLat = null;
+      parsedLon = null;
+    }
+
     return Hike(
       id: map['id'] as int?,
       name: map['name'] as String,
@@ -96,6 +126,9 @@ class Hike {
       isRemarkable: parseBool(map['isRemarkable']),
       hasParking: parseBool(map['hasParking']),
       estimatedDuration: parsedDuration,
+      latitude: parsedLat,
+      longitude: parsedLon,
+      isMapPicked: map.containsKey('isMapPicked') ? parseBool(map['isMapPicked']) : false,
       // observations sẽ được thêm vào sau khi lấy từ database
       observations: [],
     );

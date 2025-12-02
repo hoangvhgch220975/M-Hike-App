@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../viewmodels/hike_viewmodel.dart';
 import '../../models/hike.dart';
+import '../map/map_picker_view.dart';
 
 class HikeFormView extends StatefulWidget {
   final Hike? hike; // if provided, we're editing
@@ -130,6 +131,10 @@ class _HikeFormViewState extends State<HikeFormView> {
         vm.isRemarkable = h.isRemarkable;
         vm.hasParking = h.hasParking;
         vm.estimatedDuration = h.estimatedDuration;
+        vm.latitude = h.latitude;
+        vm.longitude = h.longitude;
+        vm.isMapPicked = h.isMapPicked;
+        vm.isLengthFromMap = h.isLengthFromMap;
       });
     }
   }
@@ -202,8 +207,7 @@ class _HikeFormViewState extends State<HikeFormView> {
         _dateField(context),
         const SizedBox(height: 16),
 
-        _inputField(context, "Length", lengthController,
-            hint: "e.g., 5.5 km"),
+        _lengthField(context),
         const SizedBox(height: 16),
 
         _difficultyDropdown(context),
@@ -404,34 +408,208 @@ class _HikeFormViewState extends State<HikeFormView> {
   }
 
   Widget _locationField(BuildContext context) {
+    final vm = Provider.of<HikeViewModel>(context);
+    final isMapLocation = vm.isMapPicked;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Location", style: _labelStyle(context)),
+        Row(
+          children: [
+            Text("Location", style: _labelStyle(context)),
+            if (isMapLocation) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.map, size: 14, color: accent),
+                    const SizedBox(width: 4),
+                    Text(
+                      "From Map",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
         const SizedBox(height: 6),
 
         TextFormField(
           controller: locationController,
+          enabled: !isMapLocation,
           decoration: _inputDecoration(context,
-              hint: "Enter address or coordinates"),
+              hint: isMapLocation
+                  ? "Location picked from map"
+                  : "Enter address or coordinates"),
           validator: (v) => (v == null || v.trim().isEmpty) ? 'Provide a location' : null,
+          style: TextStyle(
+            color: isMapLocation ? Colors.grey : primaryText(context),
+          ),
         ),
         const SizedBox(height: 10),
 
-        ElevatedButton.icon(
-          onPressed: () {},
-          style: ElevatedButton.styleFrom(
-            backgroundColor: accent.withOpacity(0.2),
-            foregroundColor: accent,
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MapPickerView(),
+                    ),
+                  );
+
+                  if (result != null && result is Map<String, dynamic>) {
+                    print('📥 [FORM] RECEIVED FROM MAP: $result');
+
+                    setState(() {
+                      locationController.text = result['location'] ?? 'Unknown Location';
+                      print('✅ [FORM] Location set: ${locationController.text}');
+
+                      // Set length from map distance if available
+                      if (result['distance'] != null) {
+                        print('✅ [FORM] Setting length to: ${result['distance']}');
+                        lengthController.text = result['distance'].toString();
+                        print('✅ [FORM] Length controller now: ${lengthController.text}');
+                      } else {
+                        print('⚠️ [FORM] No distance in result! Map HTML needs update.');
+                      }
+                    });
+
+                    final vm = Provider.of<HikeViewModel>(context, listen: false);
+                    vm.location = result['location'] ?? 'Unknown Location';
+                    vm.latitude = result['latitude'];
+                    vm.longitude = result['longitude'];
+                    vm.isMapPicked = true;
+                    print('✅ [FORM] VM flags set - isMapPicked: true');
+
+                    // Set length from map
+                    if (result['distance'] != null) {
+                      vm.length = result['distance'] as double;
+                      vm.isLengthFromMap = true;
+                      print('✅ [FORM] VM length set: ${vm.length} km, isLengthFromMap: true');
+                    } else {
+                      print('⚠️ [FORM] VM length NOT set - no distance in payload');
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent.withOpacity(0.2),
+                  foregroundColor: accent,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(Icons.map),
+                label: const Text(
+                  "Pick on map",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
             ),
-          ),
-          icon: const Icon(Icons.map),
-          label: const Text(
-            "Pick on map",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            if (isMapLocation) ...[
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    locationController.clear();
+                    lengthController.clear();
+                  });
+                  final vm = Provider.of<HikeViewModel>(context, listen: false);
+                  vm.location = '';
+                  vm.latitude = null;
+                  vm.longitude = null;
+                  vm.isMapPicked = false;
+                  vm.length = 0.0;
+                  vm.isLengthFromMap = false;
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.withOpacity(0.2),
+                  foregroundColor: Colors.red,
+                  minimumSize: const Size(48, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Icon(Icons.close),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _lengthField(BuildContext context) {
+    final vm = Provider.of<HikeViewModel>(context);
+    final isLengthFromMap = vm.isLengthFromMap;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text("Length (km)", style: _labelStyle(context)),
+            if (isLengthFromMap) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.straighten, size: 14, color: accent),
+                    const SizedBox(width: 4),
+                    Text(
+                      "From Map",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: lengthController,
+          enabled: !isLengthFromMap,
+          keyboardType: TextInputType.number,
+          decoration: _inputDecoration(context,
+              hint: isLengthFromMap
+                  ? "Length calculated from map route"
+                  : "e.g., 5.5"),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Length is required';
+            }
+            final n = double.tryParse(v.trim());
+            if (n == null || n <= 0) return 'Invalid length';
+            return null;
+          },
+          style: TextStyle(
+            color: isLengthFromMap ? Colors.grey : primaryText(context),
           ),
         ),
       ],

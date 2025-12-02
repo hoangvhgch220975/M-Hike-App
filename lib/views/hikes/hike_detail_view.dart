@@ -319,19 +319,31 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                           fontWeight: FontWeight.bold,
                           color: cs.onBackground,
                         ),
+                        maxLines: 3,
+                        overflow: TextOverflow.visible,
+                        softWrap: true,
                       ),
 
                       const SizedBox(height: 8),
 
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.location_on, size: 20, color: cs.onBackground.withOpacity(0.6)),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Icon(Icons.location_on, size: 20, color: cs.onBackground.withOpacity(0.6)),
+                          ),
                           const SizedBox(width: 6),
-                          Text(
-                            _hike!.location,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: cs.onBackground.withOpacity(0.7),
-                              fontWeight: FontWeight.w500,
+                          Expanded(
+                            child: Text(
+                              _hike!.location,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: cs.onBackground.withOpacity(0.7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 3,
+                              overflow: TextOverflow.visible,
+                              softWrap: true,
                             ),
                           )
                         ],
@@ -366,6 +378,8 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                           color: cs.onBackground.withOpacity(0.75),
                           height: 1.5,
                         ),
+                        softWrap: true,
+                        overflow: TextOverflow.visible,
                       ),
 
                       const SizedBox(height: 16),
@@ -435,6 +449,8 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                                     Text(
                                       'Observations can only be added after the hike has been completed.',
                                       style: theme.textTheme.bodySmall,
+                                      softWrap: true,
+                                      overflow: TextOverflow.visible,
                                     ),
                                   ],
                                 ),
@@ -523,19 +539,30 @@ class _HikeDetailViewState extends State<HikeDetailView> {
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: primary, size: 18),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(icon, color: primary, size: 18),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     value,
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    overflow: TextOverflow.visible,
+                    softWrap: true,
                   ),
                 ],
               ),
@@ -705,6 +732,8 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                       weatherVM.errorMessage!,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.orange.shade900),
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
                     ),
                     const SizedBox(height: 8),
                     // Only show retry button if not a validation error
@@ -830,8 +859,9 @@ class _HikeDetailViewState extends State<HikeDetailView> {
               color: Theme.of(context).hintColor,
             ),
             textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            overflow: TextOverflow.visible,
+            softWrap: true,
           ),
         ],
       ),
@@ -918,24 +948,30 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         return;
       }
 
-      // Check if location looks like coordinates (placeholder for future implementation)
-      // Kiểm tra nếu location là tọa độ (sẽ implement sau)
-      final coordPattern = RegExp(r'^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$');
-
-      if (coordPattern.hasMatch(location)) {
-        weatherVM.errorMessage = 'Coordinate input not yet supported. Please use city/place name.';
-        weatherVM.notifyListeners();
-        return;
-      }
-
       // Fetch weather forecast starting from hike date
+      // If location was picked from map (has lat/lon), use coordinates
+      // Otherwise, use location name
       // Lấy dự báo thời tiết bắt đầu từ ngày hike
-      await weatherVM.fetchAndSaveWeatherForHikeByLocation(
-        _hike!.id!,
-        location,
-        startDate, // Use actual hike date, not today
-        _hike!.estimatedDuration ?? 1,
-      );
+      // Nếu địa điểm được chọn từ map (có lat/lon), dùng tọa độ
+      // Ngược lại, dùng tên địa điểm
+      if (_hike!.isMapPicked && _hike!.latitude != null && _hike!.longitude != null) {
+        // Use coordinates from map picker
+        await weatherVM.fetchAndSaveWeatherForHikeByCoordinates(
+          _hike!.id!,
+          _hike!.latitude!,
+          _hike!.longitude!,
+          startDate,
+          _hike!.estimatedDuration ?? 1,
+        );
+      } else {
+        // Use location name (legacy behavior)
+        await weatherVM.fetchAndSaveWeatherForHikeByLocation(
+          _hike!.id!,
+          location,
+          startDate,
+          _hike!.estimatedDuration ?? 1,
+        );
+      }
 
     } catch (e) {
       weatherVM.errorMessage = 'Failed to fetch weather: $e';

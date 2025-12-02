@@ -89,10 +89,25 @@ class _RemarkableCardState extends State<RemarkableCard> {
       if (widget.hike.id == null) return;
       final observations = await AppDatabase.instance.getObservationsByHike(widget.hike.id!);
       String? path;
+
+      // Find first IMAGE media (not video)
+      // Tìm media đầu tiên là IMAGE (không phải video)
       if (observations.isNotEmpty) {
-        final firstObs = observations.first;
-        if (firstObs.media.isNotEmpty) path = firstObs.media.first.path;
+        for (final obs in observations) {
+          if (obs.media.isNotEmpty) {
+            // Find first image in this observation
+            for (final media in obs.media) {
+              if (media.type.toLowerCase() == 'image') {
+                path = media.path;
+                break;
+              }
+            }
+            // If found image, stop searching
+            if (path != null) break;
+          }
+        }
       }
+
       if (!mounted) return;
       setState(() => _bannerPath = path);
     } catch (_) {
@@ -187,13 +202,31 @@ class _RemarkableCardState extends State<RemarkableCard> {
                         child: const Text('Remarkable 🌟', style: TextStyle(fontSize: 12, color: Color(0xFFFFD700), fontWeight: FontWeight.w600)),
                       ),
                     const SizedBox(height: 8),
-                    Text(widget.hike.name, style: theme.textTheme.titleMedium?.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(
+                      widget.hike.name,
+                      style: theme.textTheme.titleMedium?.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
+                      maxLines: 2,
+                      overflow: TextOverflow.visible,
+                      softWrap: true,
+                    ),
                     const SizedBox(height: 4),
-                    Text(widget.hike.location, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, color: theme.hintColor)),
+                    Text(
+                      widget.hike.location,
+                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, color: theme.hintColor),
+                      maxLines: 2,
+                      overflow: TextOverflow.visible,
+                      softWrap: true,
+                    ),
                     const SizedBox(height: 8),
                     // optional description
                     if (widget.hike.description != null && widget.hike.description!.isNotEmpty)
-                      Text(widget.hike.description!, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.4, color: theme.hintColor)),
+                      Text(
+                        widget.hike.description!,
+                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.4, color: theme.hintColor),
+                        maxLines: 3,
+                        overflow: TextOverflow.visible,
+                        softWrap: true,
+                      ),
                   ],
                 ),
               ),

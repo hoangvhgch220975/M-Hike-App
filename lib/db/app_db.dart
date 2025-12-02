@@ -19,8 +19,8 @@ class AppDatabase {
 
   // Tên Database và Version
   final String _dbName = 'm_hike_hybrid_app.db';
-  // Bump DB version to 3 for estimatedDuration and weather table
-  final int _dbVersion = 3;
+  // Reset to version 1 with all fields included from the start
+  final int _dbVersion = 1;
 
   // Tên Bảng
   final String _hikeTable = 'hikes';
@@ -61,33 +61,10 @@ class AppDatabase {
   }
 
   // Xử lý nâng cấp database
+  // No migrations needed - version 1 includes all fields from the start
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add hasParking column
-      await db.execute('ALTER TABLE $_hikeTable ADD COLUMN hasParking INTEGER NOT NULL DEFAULT 0');
-    }
-
-    if (oldVersion < 3) {
-      // Add estimatedDuration column to hikes table
-      await db.execute('ALTER TABLE $_hikeTable ADD COLUMN estimatedDuration INTEGER NOT NULL DEFAULT 1');
-
-      // Create weather_forecasts table
-      await db.execute('''
-        CREATE TABLE $_weatherTable (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          hikeId INTEGER NOT NULL,
-          temperature REAL NOT NULL,
-          condition TEXT NOT NULL,
-          description TEXT NOT NULL,
-          humidity REAL NOT NULL,
-          windSpeed REAL NOT NULL,
-          icon TEXT NOT NULL,
-          timestamp TEXT NOT NULL,
-          forecastDate TEXT NOT NULL,
-          FOREIGN KEY (hikeId) REFERENCES $_hikeTable (id) ON DELETE CASCADE
-        )
-      ''');
-    }
+    // This should not be called since we're at version 1
+    // If you need to upgrade in the future, add migration logic here
   }
 
   // Tạo các bảng khi database được tạo lần đầu
@@ -105,7 +82,11 @@ class AppDatabase {
         isComplete INTEGER NOT NULL DEFAULT 0,
         isRemarkable INTEGER NOT NULL DEFAULT 0,
         hasParking INTEGER NOT NULL DEFAULT 0,
-        estimatedDuration INTEGER NOT NULL DEFAULT 1
+        estimatedDuration INTEGER NOT NULL DEFAULT 1,
+        latitude REAL,
+        longitude REAL,
+        isMapPicked INTEGER NOT NULL DEFAULT 0,
+        isLengthFromMap INTEGER NOT NULL DEFAULT 0
       )
     ''');
 

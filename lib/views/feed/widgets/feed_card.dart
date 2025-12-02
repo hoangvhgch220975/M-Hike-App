@@ -51,10 +51,25 @@ class _FeedCardState extends State<FeedCard> {
       if (widget.hike.id == null) return;
       final observations = await AppDatabase.instance.getObservationsByHike(widget.hike.id!);
       String? path;
+
+      // Find first IMAGE media (not video)
+      // Tìm media đầu tiên là IMAGE (không phải video)
       if (observations.isNotEmpty) {
-        final firstObs = observations.first;
-        if (firstObs.media.isNotEmpty) path = firstObs.media.first.path;
+        for (final obs in observations) {
+          if (obs.media.isNotEmpty) {
+            // Find first image in this observation
+            for (final media in obs.media) {
+              if (media.type.toLowerCase() == 'image') {
+                path = media.path;
+                break;
+              }
+            }
+            // If found image, stop searching
+            if (path != null) break;
+          }
+        }
       }
+
       if (!mounted) return;
       setState(() => _bannerPath = path);
     } catch (_) {
@@ -211,6 +226,9 @@ class _FeedCardState extends State<FeedCard> {
                           fontWeight: FontWeight.bold,
                         ) ??
                         const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.visible,
+                    softWrap: true,
                   ),
                   const SizedBox(height: 6),
 
@@ -278,12 +296,21 @@ class _FeedCardState extends State<FeedCard> {
     final iconColor = theme.iconTheme.color?.withOpacity(0.8) ?? Colors.grey[600];
     final textColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.9) ?? Colors.grey[600];
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: iconColor),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 16, color: iconColor),
+        ),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+            maxLines: 2,
+            overflow: TextOverflow.visible,
+            softWrap: true,
+          ),
         ),
       ],
     );

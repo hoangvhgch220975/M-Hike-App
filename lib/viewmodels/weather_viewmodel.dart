@@ -142,6 +142,24 @@ class WeatherViewModel extends ChangeNotifier {
     }
   }
 
+  // Fetch and save weather forecast for a hike (by coordinates) - Alias method
+  Future<bool> fetchAndSaveWeatherForHikeByCoordinates(
+    int hikeId,
+    double lat,
+    double lon,
+    DateTime startDate,
+    int durationDays,
+  ) async {
+    // This is just an alias to the existing method for better naming clarity
+    return await fetchAndSaveWeatherForHike(
+      hikeId,
+      lat,
+      lon,
+      startDate,
+      durationDays,
+    );
+  }
+
   // Fetch and save weather forecast for a hike (by location name)
   Future<bool> fetchAndSaveWeatherForHikeByLocation(
     int hikeId,

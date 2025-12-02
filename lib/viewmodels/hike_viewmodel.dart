@@ -18,6 +18,10 @@ class HikeViewModel extends ChangeNotifier {
   bool isRemarkable = false;
   bool hasParking = false;
   int? estimatedDuration;
+  double? latitude;
+  double? longitude;
+  bool isMapPicked = false;
+  bool isLengthFromMap = false;
 
   // Lists for different categories
   List<Hike> hikes = [];
@@ -113,6 +117,10 @@ class HikeViewModel extends ChangeNotifier {
     isRemarkable = false;
     hasParking = false;
     estimatedDuration = null;
+    latitude = null;
+    longitude = null;
+    isMapPicked = false;
+    isLengthFromMap = false;
     autoLength = false;
     manualLength = null;
     calculatedLength = null;
@@ -132,6 +140,10 @@ class HikeViewModel extends ChangeNotifier {
     isRemarkable = hike.isRemarkable;
     hasParking = hike.hasParking;
     estimatedDuration = hike.estimatedDuration;
+    latitude = hike.latitude;
+    longitude = hike.longitude;
+    isMapPicked = hike.isMapPicked;
+    isLengthFromMap = hike.isLengthFromMap;
     notifyListeners();
   }
 
@@ -171,6 +183,10 @@ class HikeViewModel extends ChangeNotifier {
         isRemarkable: preserveIsRemarkable,
         hasParking: hasParking,
         estimatedDuration: estimatedDuration,
+        latitude: latitude,
+        longitude: longitude,
+        isMapPicked: isMapPicked,
+        isLengthFromMap: isLengthFromMap,
       );
 
       if (id == null) {
