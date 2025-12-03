@@ -392,7 +392,7 @@ class _HikeFormViewState extends State<HikeFormView> {
               return 'Please enter a valid number of days';
             }
             if (n > 5) {
-              return 'Duration cannot exceed 5 days (API limit)';
+              return 'Duration cannot exceed 5 days';
             }
             return null;
           },

@@ -127,7 +127,7 @@ class PlanCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title + Location + Date + Complete Button
+              // Title + Location + Date + Action Buttons
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -161,17 +161,120 @@ class PlanCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Tick button to mark as completed (no overflow button; long-press the card for options)
+                  // Delete button - Nút xóa (improved styling)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        // Show confirmation dialog - Hiển thị dialog xác nhận
+                        final shouldDelete = await showDialog<bool>(
+                          context: context,
+                          builder: (BuildContext ctx) {
+                            return AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              title: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red[700],
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      'Delete Plan',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              content: Text(
+                                'Are you sure you want to delete "${hike.name}"? This action cannot be undone.',
+                                style: const TextStyle(fontSize: 15, height: 1.5),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  ),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.red,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        // If user confirmed deletion - Nếu người dùng xác nhận xóa
+                        if (shouldDelete == true && onDelete != null) {
+                          onDelete!();
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.red[400]!,
+                              Colors.red[600]!,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.red.withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.delete_outline, size: 20, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Complete button - Nút hoàn thành
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: onCompleted,
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: primary,
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: Icon(Icons.check, size: 20, color: onPrimary),
                       ),
@@ -193,10 +296,11 @@ class PlanCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Difficulty + Length
+              // Difficulty + Length + AI Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Difficulty badge
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
@@ -209,10 +313,134 @@ class PlanCard extends StatelessWidget {
                       style: theme.textTheme.bodyMedium?.copyWith(color: difficultyColor, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
-                  Text(
-                    "${hike.length.toStringAsFixed(1)} km",
-                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
-                  )
+
+                  Row(
+                    children: [
+                      // Length text
+                      Text(
+                        "${hike.length.toStringAsFixed(1)} km",
+                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 12),
+                      // AI suggestion button - Nút AI gợi ý
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            // Show AI feature notification - Hiển thị thông báo tính năng AI
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.auto_awesome,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Text(
+                                        'AI Trip Advisor',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF667eea).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Column(
+                                        children: [
+                                          Icon(
+                                            Icons.construction,
+                                            size: 48,
+                                            color: Color(0xFF667eea),
+                                          ),
+                                          SizedBox(height: 16),
+                                          Text(
+                                            'AI Trip Advisor',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'This feature is coming soon!\n\nAI will analyze your trip and provide personalized suggestions for your hike.',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF667eea),
+                                    ),
+                                    child: const Text(
+                                      'Got it',
+                                      style: TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF667eea).withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               )
             ],
