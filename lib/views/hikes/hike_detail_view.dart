@@ -5,9 +5,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../models/hike.dart';
 import '../../models/weather_data.dart';
+import '../../models/ai_suggestion.dart';
 import '../../db/app_db.dart';
 import '../../viewmodels/hike_viewmodel.dart';
 import '../../viewmodels/weather_viewmodel.dart';
+import '../../services/ai_service.dart';
+import '../ai/ai_suggestion_detail_page.dart';
 import 'hike_form_view.dart';
 import '../observations/no_observation_card.dart';
 import '../observations/observation_item.dart';
@@ -396,6 +399,11 @@ class _HikeDetailViewState extends State<HikeDetailView> {
 
                       // Weather Forecast Section
                       _buildWeatherForecastSection(primary, theme, secondaryText),
+
+                      const SizedBox(height: 24),
+
+                      // AI Trip Advisor Button
+                      _buildAITripAdvisorButton(primary, theme),
 
                       const SizedBox(height: 24),
 
@@ -977,6 +985,382 @@ class _HikeDetailViewState extends State<HikeDetailView> {
       weatherVM.errorMessage = 'Failed to fetch weather: $e';
       weatherVM.notifyListeners();
     }
+  }
+
+  /// Build AI Trip Advisor Button
+  Widget _buildAITripAdvisorButton(Color primary, ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF667eea).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _handleAIButtonTap(context),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'AI Trip Advisor',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Get personalized recommendations for this hike',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Handle AI button tap - Check database first, then generate if needed
+  void _handleAIButtonTap(BuildContext context) async {
+    if (_hike?.id == null) {
+      _showErrorDialog(context, 'Error', 'Cannot generate AI suggestion for this hike.');
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 50,
+                height: 50,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Loading AI suggestions...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Checking database',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).hintColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Check if AI suggestion already exists in database
+      final existingSuggestion = await AppDatabase.instance.getAISuggestionByHikeId(_hike!.id!);
+
+      // Close loading dialog
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (existingSuggestion != null) {
+        // AI suggestion found in database, navigate directly to detail page
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AISuggestionDetailPage(
+                suggestion: existingSuggestion,
+                hike: _hike!,
+              ),
+            ),
+          );
+        }
+      } else {
+        // No AI suggestion found, ask user if they want to generate one
+        _showGenerateDialog(context);
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) Navigator.of(context).pop();
+
+      _showErrorDialog(
+        context,
+        'Error',
+        'An error occurred while checking AI suggestions: $e',
+      );
+    }
+  }
+
+  /// Show dialog asking user if they want to generate AI suggestion
+  void _showGenerateDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Generate AI Plan?',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'No AI suggestions found for this hike.\n\n'
+          'Would you like to generate personalized recommendations now?',
+          style: TextStyle(fontSize: 15, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _generateAISuggestion(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667eea),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            icon: const Icon(Icons.auto_awesome, size: 20),
+            label: const Text('Generate'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Generate new AI suggestion
+  void _generateAISuggestion(BuildContext context) async {
+    if (_hike?.id == null) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 50,
+                height: 50,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'AI is analyzing your trip...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This may take a few seconds',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).hintColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Generate AI suggestion
+      final suggestion = await AIService.generateAISuggestion(_hike!);
+
+      // Close loading dialog
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (suggestion != null) {
+        // Navigate to detail page
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AISuggestionDetailPage(
+                suggestion: suggestion,
+                hike: _hike!,
+              ),
+            ),
+          );
+        }
+      } else {
+        _showErrorDialog(
+          context,
+          'Generation Failed',
+          'Failed to generate AI suggestion. Please try again.',
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) Navigator.of(context).pop();
+
+      // Show error dialog
+      String errorMessage = 'An error occurred while generating AI suggestion.';
+      if (e.toString().contains('timeout')) {
+        errorMessage = 'The AI service is taking too long to respond. Please check your connection and try again.';
+      } else if (e.toString().contains('Connection') || e.toString().contains('SocketException')) {
+        errorMessage = 'Cannot connect to AI service.\n\n'
+            'Please make sure:\n'
+            '• Backend is running at localhost:8000\n'
+            '• Using correct URL (10.0.2.2:8000 for Android Emulator)\n'
+            '• Firewall is not blocking connection';
+      }
+
+      _showErrorDialog(context, 'Connection Error', errorMessage);
+    }
+  }
+
+  /// Show error dialog
+  void _showErrorDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.error_outline,
+                color: Colors.red[700],
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 15, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red[700],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   DateTime _parseHikeDate(String dateStr) {

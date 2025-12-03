@@ -5,6 +5,7 @@ import 'package:path/path.dart';
 import '../models/hike.dart';
 import '../models/observation.dart';
 import '../models/media_item.dart';
+import '../models/ai_suggestion.dart';
 
 // ============================================================================
 // LỚP QUẢN LÝ DATABASE (SINGLETON)
@@ -19,7 +20,7 @@ class AppDatabase {
 
   // Tên Database và Version
   final String _dbName = 'm_hike_hybrid_app.db';
-  // Reset to version 1 with all fields included from the start
+  // Version 1: All tables including AI suggestions from the start
   final int _dbVersion = 1;
 
   // Tên Bảng
@@ -27,6 +28,7 @@ class AppDatabase {
   final String _observationTable = 'observations';
   final String _mediaTable = 'media';
   final String _weatherTable = 'weather_forecasts';
+  final String _aiSuggestionTable = 'ai_suggestions';
 
   // Getter cho Database instance
   // Nếu database đã tồn tại (_database != null) thì trả về, ngược lại khởi tạo
@@ -49,7 +51,8 @@ class AppDatabase {
     );
   }
 
-  // onOpen — no runtime schema migrations performed here. The DB schema already contains `hasParking`.
+  // onOpen — Database schema includes all tables from version 1
+  // All features: hikes, observations, media, weather_forecasts, ai_suggestions
   Future _onOpen(Database db) async {
     // intentionally left blank
   }
@@ -61,9 +64,9 @@ class AppDatabase {
   }
 
   // Xử lý nâng cấp database
-  // No migrations needed - version 1 includes all fields from the start
+  // Starting fresh at version 1 with all tables from the start
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // This should not be called since we're at version 1
+    // No migrations needed - version 1 includes all tables
     // If you need to upgrade in the future, add migration logic here
   }
 
@@ -126,6 +129,23 @@ class AppDatabase {
         icon TEXT NOT NULL,
         timestamp TEXT NOT NULL,
         forecastDate TEXT NOT NULL,
+        FOREIGN KEY (hikeId) REFERENCES $_hikeTable (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // 5. Bảng AI_SUGGESTIONS (Liên kết với HIKES)
+    await db.execute('''
+      CREATE TABLE $_aiSuggestionTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hikeId INTEGER NOT NULL,
+        summary TEXT NOT NULL,
+        difficultyAdvice TEXT NOT NULL,
+        weatherAdvice TEXT NOT NULL,
+        packingList TEXT NOT NULL,
+        risks TEXT NOT NULL,
+        startTimeHint TEXT,
+        generatedAt TEXT NOT NULL,
+        modelVersion TEXT NOT NULL,
         FOREIGN KEY (hikeId) REFERENCES $_hikeTable (id) ON DELETE CASCADE
       )
     ''');
@@ -710,6 +730,76 @@ class AppDatabase {
          await txn.insert(_weatherTable, forecast);
        }
      });
+   }
+
+   // ============================================================================
+   // MARK: - CRUD AI Suggestions
+   // ============================================================================
+
+   /// Thêm một AI suggestion mới vào bảng ai_suggestions
+   Future<int> insertAISuggestion(AISuggestion suggestion) async {
+     Database db = await instance.database;
+     return await db.insert(_aiSuggestionTable, suggestion.toMap());
+   }
+
+   /// Lấy AI suggestion theo hikeId
+   /// Returns null if no suggestion exists for this hike
+   Future<AISuggestion?> getAISuggestionByHikeId(int hikeId) async {
+     Database db = await instance.database;
+     final List<Map<String, dynamic>> maps = await db.query(
+       _aiSuggestionTable,
+       where: 'hikeId = ?',
+       whereArgs: [hikeId],
+       limit: 1,
+     );
+
+     if (maps.isNotEmpty) {
+       return AISuggestion.fromMap(maps.first);
+     }
+     return null;
+   }
+
+   /// Cập nhật AI suggestion
+   Future<int> updateAISuggestion(AISuggestion suggestion) async {
+     Database db = await instance.database;
+     return await db.update(
+       _aiSuggestionTable,
+       suggestion.toMap(),
+       where: 'id = ?',
+       whereArgs: [suggestion.id],
+     );
+   }
+
+   /// Xóa AI suggestion theo hikeId
+   Future<int> deleteAISuggestionByHikeId(int hikeId) async {
+     Database db = await instance.database;
+     return await db.delete(
+       _aiSuggestionTable,
+       where: 'hikeId = ?',
+       whereArgs: [hikeId],
+     );
+   }
+
+   /// Xóa AI suggestion theo ID
+   Future<int> deleteAISuggestion(int id) async {
+     Database db = await instance.database;
+     return await db.delete(
+       _aiSuggestionTable,
+       where: 'id = ?',
+       whereArgs: [id],
+     );
+   }
+
+   /// Kiểm tra xem hike có AI suggestion chưa
+   Future<bool> hasAISuggestion(int hikeId) async {
+     Database db = await instance.database;
+     final List<Map<String, dynamic>> maps = await db.query(
+       _aiSuggestionTable,
+       where: 'hikeId = ?',
+       whereArgs: [hikeId],
+       limit: 1,
+     );
+     return maps.isNotEmpty;
    }
 
    // ============================================================================
