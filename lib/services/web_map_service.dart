@@ -33,11 +33,11 @@ class WebMapService {
         return null;
       }
 
-      // Parse và validate latitude
+      // Parse and validate latitude
       final lat = _parseCoordinate(data['lat'], 'latitude');
       if (lat == null) return null;
 
-      // Parse và validate longitude
+      // Parse and validate longitude
       final lon = _parseCoordinate(data['lon'], 'longitude');
       if (lon == null) return null;
 

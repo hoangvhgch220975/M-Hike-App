@@ -23,6 +23,7 @@ class _HikeFormViewState extends State<HikeFormView> {
   final durationController = TextEditingController(text: '1');
 
   String difficulty = 'Moderate';
+  String type = 'Individual';
   bool parkingAvailable = true;
   int estimatedDuration = 1;
 
@@ -118,6 +119,7 @@ class _HikeFormViewState extends State<HikeFormView> {
       difficulty = h.difficulty;
       parkingAvailable = h.hasParking;
       estimatedDuration = h.estimatedDuration ?? 1;
+      type = h.type;
       // Populate the ViewModel with the existing hike values so saving doesn't overwrite flags
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final vm = Provider.of<HikeViewModel>(context, listen: false);
@@ -135,6 +137,7 @@ class _HikeFormViewState extends State<HikeFormView> {
         vm.longitude = h.longitude;
         vm.isMapPicked = h.isMapPicked;
         vm.isLengthFromMap = h.isLengthFromMap;
+        vm.type = h.type;
       });
     }
   }
@@ -211,6 +214,9 @@ class _HikeFormViewState extends State<HikeFormView> {
         const SizedBox(height: 16),
 
         _difficultyDropdown(context),
+        const SizedBox(height: 16),
+
+        _typeDropdown(context),
         const SizedBox(height: 16),
 
         _parkingSwitch(context),
@@ -327,6 +333,49 @@ class _HikeFormViewState extends State<HikeFormView> {
                 label: Text(d, style: TextStyle(fontWeight: FontWeight.w600)),
                 selected: isSelected,
                 onSelected: (_) => setState(() => difficulty = d),
+                selectedColor: primary,
+                disabledColor: surfaceColor(context),
+                backgroundColor: surfaceColor(context),
+                elevation: isSelected ? 4 : 0,
+                side: BorderSide(color: isSelected ? primary : borderColor(context)),
+                labelStyle: TextStyle(
+                  color: isSelected ? onPrimary : primaryText(context),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _typeDropdown(BuildContext context) {
+    final choices = ["Individual", "Group"];
+    final onPrimary = ThemeData.estimateBrightnessForColor(primary) == Brightness.dark ? Colors.white : Colors.black;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Type", style: _labelStyle(context)),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: surfaceColor(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor(context)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: choices.map((t) {
+              final isSelected = t == type;
+              return ChoiceChip(
+                label: Text(t, style: TextStyle(fontWeight: FontWeight.w600)),
+                selected: isSelected,
+                onSelected: (_) => setState(() => type = t),
                 selectedColor: primary,
                 disabledColor: surfaceColor(context),
                 backgroundColor: surfaceColor(context),
@@ -745,6 +794,7 @@ class _HikeFormViewState extends State<HikeFormView> {
         // Don't set isComplete/isRemarkable here — saveHike() will fetch the
         // existing database record (if id != null) and preserve those flags.
 
+        vm.type = type;
         if (!vm.formKey.currentState!.validate()) return;
 
         final success = await vm.saveHike(id: widget.hike?.id);

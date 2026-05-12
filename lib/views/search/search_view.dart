@@ -3,8 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../db/app_db.dart';
 import '../../models/hike.dart';
+
+import '../../viewmodels/hike_viewmodel.dart';
 import '../hikes/hike_detail_view.dart';
 
 class SearchView extends StatefulWidget {
@@ -16,6 +17,7 @@ class SearchView extends StatefulWidget {
 
 class _SearchViewState extends State<SearchView> {
   final TextEditingController _controller = TextEditingController();
+  final HikeViewModel _vm = HikeViewModel();
   Timer? _debounce;
   bool _isSearching = false;
   List<Hike> _results = [];
@@ -55,8 +57,12 @@ class _SearchViewState extends State<SearchView> {
       if (hike.id == null) continue;
 
       try {
-        final detail = await AppDatabase.instance.getHikeDetailData(hike.id!);
-        if (detail == null) continue;
+        print('DEBUG: loading detail for hike id=${hike.id}');
+        final detail = await _vm.getHikeById(hike.id!);
+        if (detail == null) {
+          print('DEBUG: no detail for hike id=${hike.id}');
+          continue;
+        }
 
         String? foundPath;
         if (detail.observations.isNotEmpty) {
@@ -78,11 +84,15 @@ class _SearchViewState extends State<SearchView> {
 
         if (!mounted || querySnapshot != _query) return;
         if (foundPath != null) {
+          print('DEBUG: found image for hike id=${hike.id} -> $foundPath');
           setState(() {
             _imageForHike[hike.id!] = foundPath!;
           });
+        } else {
+          print('DEBUG: no image found in observations for hike id=${hike.id}');
         }
-      } catch (_) {
+      } catch (e, st) {
+        print('DEBUG: error loading images for hike id=${hike.id}: $e\n$st');
         // ignore per-hike load errors
       }
     }
@@ -141,7 +151,7 @@ class _SearchViewState extends State<SearchView> {
 
     _debounce = Timer(const Duration(milliseconds: 300), () async {
       try {
-        final items = await AppDatabase.instance.searchHikes(_query);
+        final items = await _vm.searchHikes(_query);
         if (!mounted) return;
         // snapshot the query so image loads can be cancelled if a new query arrives
         final currentQuery = _query;
@@ -421,17 +431,42 @@ class HikeItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // Normalize image path and add debug logging so it's easier to see what's being used
+    String normalized = imageUrl.trim();
+    // If it's a plain filename like 'IMG_1234.jpg', treat it as bundled asset
+    final filenameReg = RegExp(r'^[\w,\s-]+\.[A-Za-z]{3,4}');
+    // The above regex will be replaced immediately below with a correct one to avoid accidental unicode termination
+    // Use a correct filename check
+    final correctFilenameReg = RegExp(r'^[\w,\s-]+\.[A-Za-z]{3,4}');
+
+    // Fix: use a safe filename regex (letters/digits/underscore/hyphen/space, dot, 3-4 alpha extension)
+    final safeFilenameReg = RegExp(r'^[\w\s-]+\.[A-Za-z]{3,4}\$');
+
+    if (!normalized.startsWith('http') && !normalized.startsWith('file://') && !normalized.startsWith('/') && !RegExp(r'^[a-zA-Z]:\\').hasMatch(normalized)) {
+      if (safeFilenameReg.hasMatch(normalized)) {
+        normalized = 'lib/assets/images/' + normalized;
+      }
+    }
+
+    // debug print
+    try {
+      // Surround with try/catch to avoid issues in release modes
+      // ignore: avoid_print
+      print('DEBUG: HikeItem image raw="$imageUrl" normalized="$normalized"');
+    } catch (_) {}
+
     // Choose appropriate ImageProvider for asset, network or local file
     ImageProvider provider;
-    if (imageUrl.startsWith('http')) {
-      provider = NetworkImage(imageUrl);
-    } else if (imageUrl.startsWith('file://')) {
-      provider = FileImage(File(imageUrl.replaceFirst('file://', '')));
-    } else if (imageUrl.startsWith('/') || RegExp(r'^[a-zA-Z]:\\').hasMatch(imageUrl)) {
+    if (normalized.startsWith('http')) {
+      provider = NetworkImage(normalized);
+    } else if (normalized.startsWith('file://')) {
+      provider = FileImage(File(normalized.replaceFirst('file://', '')));
+    } else if (normalized.startsWith('/') || RegExp(r'^[a-zA-Z]:\\').hasMatch(normalized)) {
       // Absolute file path on Android/iOS/Windows
-      provider = FileImage(File(imageUrl));
+      provider = FileImage(File(normalized));
     } else {
-      provider = AssetImage(imageUrl);
+      provider = AssetImage(normalized);
     }
 
     return InkWell(
@@ -452,6 +487,18 @@ class HikeItem extends StatelessWidget {
                 width: 70,
                 height: 70,
                 fit: BoxFit.cover,
+                // If any image provider fails (network/file), show the bundled placeholder
+                errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                  return Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey.shade200,
+                    child: Image.asset(
+                      'lib/assets/images/imageholder.png',
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 16),

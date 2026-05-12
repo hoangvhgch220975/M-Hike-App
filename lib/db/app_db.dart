@@ -89,7 +89,8 @@ class AppDatabase {
         latitude REAL,
         longitude REAL,
         isMapPicked INTEGER NOT NULL DEFAULT 0,
-        isLengthFromMap INTEGER NOT NULL DEFAULT 0
+        isLengthFromMap INTEGER NOT NULL DEFAULT 0,
+        type TEXT NOT NULL
       )
     ''');
 

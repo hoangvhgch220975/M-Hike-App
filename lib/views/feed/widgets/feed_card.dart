@@ -102,6 +102,7 @@ class _FeedCardState extends State<FeedCard> {
       isComplete: widget.hike.isComplete,
       isRemarkable: newValue,
       hasParking: widget.hike.hasParking,
+      type: widget.hike.type,
     );
 
     try {

@@ -19,6 +19,7 @@ class Hike {
   bool isMapPicked; // Flag indicating if location was selected from map
   bool isLengthFromMap; // Flag indicating if length was calculated from map
   List<Observation> observations; // List of related observations
+  String type;
 
   Hike({
     this.id,
@@ -37,6 +38,7 @@ class Hike {
     this.isMapPicked = false,
     this.isLengthFromMap = false,
     this.observations = const [], // Initialize empty
+    required this.type,
   });
 
   // Convert Hike object to Map for SQLite storage
@@ -57,6 +59,7 @@ class Hike {
       'latitude': latitude,
       'longitude': longitude,
       'isMapPicked': isMapPicked ? 1 : 0,
+      'type': type,
     };
   }
 
@@ -131,6 +134,7 @@ class Hike {
       isMapPicked: map.containsKey('isMapPicked') ? parseBool(map['isMapPicked']) : false,
       // observations will be injected later after loading from DB
       observations: [],
+      type: map['type'] as String,
     );
   }
 }

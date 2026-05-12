@@ -22,6 +22,8 @@ class HikeViewModel extends ChangeNotifier {
   double? longitude;
   bool isMapPicked = false;
   bool isLengthFromMap = false;
+  String type = '';
+
 
   // Lists for different categories
   List<Hike> hikes = [];
@@ -124,6 +126,7 @@ class HikeViewModel extends ChangeNotifier {
     autoLength = false;
     manualLength = null;
     calculatedLength = null;
+    type = '';
     formKey.currentState?.reset();
     notifyListeners();
   }
@@ -144,6 +147,7 @@ class HikeViewModel extends ChangeNotifier {
     longitude = hike.longitude;
     isMapPicked = hike.isMapPicked;
     isLengthFromMap = hike.isLengthFromMap;
+    type = hike.type;
     notifyListeners();
   }
 
@@ -187,6 +191,7 @@ class HikeViewModel extends ChangeNotifier {
         longitude: longitude,
         isMapPicked: isMapPicked,
         isLengthFromMap: isLengthFromMap,
+        type: type
       );
 
       if (id == null) {
@@ -383,3 +388,4 @@ class HikeViewModel extends ChangeNotifier {
     }
   }
 }
+

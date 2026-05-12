@@ -360,9 +360,12 @@ class _HikeDetailViewState extends State<HikeDetailView> {
                         difficulty: _hike!.difficulty,
                         duration: "${_hike!.estimatedDuration ?? 1} ${(_hike!.estimatedDuration ?? 1) == 1 ? 'day' : 'days'}",
                         parking: _hike!.hasParking ? 'Yes' : 'No',
+                        type: _hike!.type,
                       ),
 
                       const SizedBox(height: 20),
+
+
 
                       Text(
                         'Description',
@@ -530,6 +533,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         required String difficulty,
         required String parking,
         required String duration,
+        required String type,
       }) {
     Widget tile(IconData icon, String label, String value) {
       return Container(
@@ -592,6 +596,7 @@ class _HikeDetailViewState extends State<HikeDetailView> {
         tile(Icons.trending_up, "Difficulty", difficulty),
         tile(Icons.access_time, "Duration", duration),
         tile(Icons.local_parking, "Parking", parking),
+        tile(Icons.type_specimen, "Type", type),
       ],
     );
   }

@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/hike.dart';
 import '../models/ai_suggestion.dart';
-import '../models/weather_data.dart';
 import '../db/app_db.dart';
 
 /// Service for calling AI backend (Python FastAPI)

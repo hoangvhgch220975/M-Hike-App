@@ -1,0 +1,135 @@
+DropdownButton<String>(
+  value: selectedValue,
+  items: [
+    DropdownMenuItem(value: 'A', child: Text('Option A')),
+    DropdownMenuItem(value: 'B', child: Text('Option B')),
+    DropdownMenuItem(value: 'C', child: Text('Option C')),
+  ],
+  onChanged: (value) {
+    setState(() {
+      selectedValue = value!;
+    });
+  },
+)
+
+
+
+
+List<String> items = ['Apple', 'Banana', 'Orange'];
+
+DropdownButton<String>(
+  value: selectedFruit,
+  onChanged: (value) => setState(() => selectedFruit = value),
+  items: items.map((e) {
+    return DropdownMenuItem(
+      value: e,
+      child: Text(e),
+    );
+  }).toList(),
+)
+
+
+
+
+class DropdownViewModel extends ChangeNotifier {
+  List<String> items = ['Red', 'Green', 'Blue'];
+  String? selected;
+
+  void setSelected(String value) {
+    selected = value;
+    notifyListeners();
+  }
+}
+
+
+
+final vm = context.watch<DropdownViewModel>();
+
+DropdownButton<String>(
+  value: vm.selected,
+  hint: Text('Select color'),
+  items: vm.items.map((color) {
+    return DropdownMenuItem(
+      value: color,
+      child: Text(color),
+    );
+  }).toList(),
+  onChanged: (value) {
+    vm.setSelected(value!);
+  },
+)
+
+
+ví dụ cụ thể về dropdown chọn độ khó trong Flutter:
+Widget _difficultyDropdown(BuildContext context) {
+  final difficulties = ["Easy", "Moderate", "Hard", "Expert"];
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text("Difficulty", style: _labelStyle(context)),
+      const SizedBox(height: 6),
+
+      DropdownButtonFormField<String>(
+        value: difficulty, // biến state bạn đã có sẵn
+        decoration: _inputDecoration(context),
+        items: difficulties.map((item) {
+          return DropdownMenuItem(
+            value: item,
+            child: Text(item),
+          );
+        }).toList(),
+
+        onChanged: (value) {
+          if (value == null) return;
+          setState(() => difficulty = value);
+        },
+
+        validator: (v) =>
+          (v == null || v.isEmpty) ? "Select difficulty" : null,
+      ),
+    ],
+  );
+}
+
+// đếm số lượng hikes
+db
+Future<int> countHikes() async {
+  final db = await DatabaseHelper.instance.database;
+  final result = await db.rawQuery('SELECT COUNT(*) as count FROM hikes');
+  return Sqflite.firstIntValue(result) ?? 0;
+}
+Future<int> countObservations() async {
+  final db = await DatabaseHelper.instance.database;
+  final result = await db.rawQuery('SELECT COUNT(*) as count FROM observations');
+  return Sqflite.firstIntValue(result) ?? 0;
+}
+
+int hikeCount = 0;
+int observationCount = 0;
+
+Future<void> loadCounts() async {
+  hikeCount = await repository.countHikes();
+  observationCount = await repository.countObservations();
+  notifyListeners();
+}
+@override
+void init() {
+  loadCounts();
+}
+Container(
+  padding: EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+  ),
+  child: Column(
+    children: [
+      Text("Hikes", style: TextStyle(fontSize: 16)),
+      Text("${vm.hikeCount}", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+    ],
+  ),
+)
+
+
+
